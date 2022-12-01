@@ -64,7 +64,7 @@ fn main() {
     }
 
     cmd_args.append(&mut vec![
-        "--file".into(),
+        "-i".into(),
         tmp_file_path.to_string_lossy().to_string(),
         "--day".into(),
         args.day.to_string(),

@@ -1,6 +1,6 @@
 <img src="./.assets/christmas_ferris.png" width="164">
 
-# 🎄 Advent of Code {year}
+# 🎄 Advent of Code 2022
 
 Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.rust-lang.org/).
 
@@ -30,25 +30,7 @@ This template supports all major OS (macOS, Linux, Windows).
 
 ## Usage
 
-### Scaffold a day
-
-```sh
-# example: `cargo scaffold 1`
-cargo scaffold <day>
-
-# output:
-# Created module "src/bin/01.rs"
-# Created empty input file "src/inputs/01.txt"
-# Created empty example file "src/examples/01.txt"
-# ---
-# 🎄 Type `cargo solve 01` to run your solution.
-```
-
-Individual solutions live in the `./src/bin/` directory as separate binaries.
-
-Every [solution](https://github.com/fspoettel/advent-of-code-rust/blob/main/src/bin/scaffold.rs#L11-L41) has _unit tests_ referencing its _example_ file. Use these unit tests to develop and debug your solution against example inputs. For some puzzles, it might be easier to forgo the example file and hardcode inputs into the tests.
-
-When editing a solution, `rust-analyzer` will display buttons for running / debugging unit tests above the unit test blocks.
+You must have the [Rust toolchain](https://www.rust-lang.org/tools/install) installed.
 
 ### Download input for a day
 
