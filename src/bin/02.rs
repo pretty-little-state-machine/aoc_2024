@@ -38,6 +38,7 @@ fn str_to_outcome(letter: &str) -> Outcome {
 }
 
 /// Returns a shape that will result in the specified match outcome based on the elf's shape.
+#[inline(always)]
 fn get_move_for_outcome(elf_shape: Shape, outcome: Outcome) -> Shape {
     match outcome {
         Win => match elf_shape {
