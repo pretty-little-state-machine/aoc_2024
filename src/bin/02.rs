@@ -80,7 +80,7 @@ fn get_round_outcome(elf_shape: Shape, player_shape: Shape) -> Outcome {
 pub fn part_one(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
     for line in input.lines() {
-        let mut chars = line.as_bytes();
+        let chars = line.as_bytes();
         let elf_shape = str_to_shape(&[chars[0]]);
         let player_shape = str_to_shape(&[chars[2]]);
 
@@ -94,7 +94,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 pub fn part_two(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
     for line in input.lines() {
-        let mut chars = line.as_bytes();
+        let chars = line.as_bytes();
         let elf_shape = str_to_shape(&[chars[0]]);
         let target_outcome = str_to_outcome(&[chars[2]]);
 
