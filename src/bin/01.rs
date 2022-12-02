@@ -1,38 +1,34 @@
-#[derive(Default, Debug)]
-struct ElfBags {
-    calories: u32,
-}
+use itertools::Itertools;
 
-fn build_elf_bags(input: &str) -> Vec<ElfBags> {
-    let mut bags: Vec<ElfBags> = Vec::new();
-    bags.push(ElfBags::default());
+fn build_elf_bags(input: &str) -> Vec<u32> {
+    let mut bags: Vec<u32> = Vec::with_capacity(500);
+    let mut total: u32 = 0;
 
     for line in input.split('\n') {
         match line.trim_end().parse::<u32>() {
-            Ok(calories) => bags.last_mut().unwrap().calories += calories,
-            Err(_) => bags.push(ElfBags::default()),
+            Ok(calories) => total += calories,
+            Err(_) => {
+                bags.push(total);
+                total = 0
+            }
         }
     }
+    bags.push(total);
     bags
 }
 
 /// Find the Elf carrying the most Calories.
 /// How many total Calories is that Elf carrying?
 pub fn part_one(input: &str) -> Option<u32> {
-    let bags = build_elf_bags(input);
-    let max_calories = bags.iter().max_by_key(|b| b.calories).unwrap().calories;
-    Some(max_calories)
+    let max_calories = build_elf_bags(input).into_iter().k_largest(1);
+    Some(max_calories.sum())
 }
 
 /// Find the top three Elves carrying the most Calories.
 /// How many Calories are those Elves carrying in total?
 pub fn part_two(input: &str) -> Option<u32> {
-    let mut bags = build_elf_bags(input);
-    bags.sort_by_key(|b| b.calories);
-    bags.reverse();
-    bags.truncate(3);
-    let total_cals = bags.iter().map(|b| b.calories).sum();
-    Some(total_cals)
+    let bags = build_elf_bags(input).into_iter().k_largest(3);
+    Some(bags.sum())
 }
 
 fn main() {
