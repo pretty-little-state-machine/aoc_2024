@@ -79,8 +79,7 @@ fn get_round_outcome(elf_shape: Shape, player_shape: Shape) -> Outcome {
 /// Use the two columns of input as the two shapes and calculate the total score of the game.
 pub fn part_one(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
-    for line in input.lines() {
-        let chars = line.as_bytes();
+    for chars in input.as_bytes().chunks(4) {
         let elf_shape = str_to_shape(&[chars[0]]);
         let player_shape = str_to_shape(&[chars[2]]);
 
@@ -93,8 +92,7 @@ pub fn part_one(input: &str) -> Option<u32> {
 /// Use the first column as the elf's shape and the second column as the strategy to execute.
 pub fn part_two(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
-    for line in input.lines() {
-        let chars = line.as_bytes();
+    for chars in input.as_bytes().chunks(4) {
         let elf_shape = str_to_shape(&[chars[0]]);
         let target_outcome = str_to_outcome(&[chars[2]]);
 
