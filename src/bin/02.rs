@@ -17,22 +17,22 @@ enum Outcome {
 
 /// Converts a &str to Shape - Used for Part I
 #[inline(always)]
-fn str_to_shape(letter: &str) -> Shape {
+fn str_to_shape(letter: &[u8; 1]) -> Shape {
     match letter {
-        "A" | "X" => Rock,
-        "B" | "Y" => Paper,
-        "C" | "Z" => Scissors,
+        b"A" | b"X" => Rock,
+        b"B" | b"Y" => Paper,
+        b"C" | b"Z" => Scissors,
         _ => unreachable!("Invalid puzzle move input, must be A|B|C|X|Y|Z"),
     }
 }
 
 /// Converts a &str to a target outcome - Used for Part II
 #[inline(always)]
-fn str_to_outcome(letter: &str) -> Outcome {
+fn str_to_outcome(letter: &[u8; 1]) -> Outcome {
     match letter {
-        "X" => Loss,
-        "Y" => Draw,
-        "Z" => Win,
+        b"X" => Loss,
+        b"Y" => Draw,
+        b"Z" => Win,
         _ => unreachable!("Invalid target outcome, must be X|Y|Z"),
     }
 }
@@ -80,9 +80,9 @@ fn get_round_outcome(elf_shape: Shape, player_shape: Shape) -> Outcome {
 pub fn part_one(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
     for line in input.lines() {
-        let columns: Vec<&str> = line.split(' ').collect();
-        let elf_shape = str_to_shape(columns.first().unwrap());
-        let player_shape = str_to_shape(columns.get(1).unwrap());
+        let mut chars = line.as_bytes();
+        let elf_shape = str_to_shape(&[chars[0]]);
+        let player_shape = str_to_shape(&[chars[2]]);
 
         total += player_shape as u32;
         total += get_round_outcome(elf_shape, player_shape) as u32;
@@ -94,9 +94,9 @@ pub fn part_one(input: &str) -> Option<u32> {
 pub fn part_two(input: &str) -> Option<u32> {
     let mut total: u32 = 0;
     for line in input.lines() {
-        let columns: Vec<&str> = line.split(' ').collect();
-        let elf_shape = str_to_shape(columns.first().unwrap());
-        let target_outcome = str_to_outcome(columns.get(1).unwrap());
+        let mut chars = line.as_bytes();
+        let elf_shape = str_to_shape(&[chars[0]]);
+        let target_outcome = str_to_outcome(&[chars[2]]);
 
         total += get_move_for_outcome(elf_shape, target_outcome) as u32;
         total += target_outcome as u32;
