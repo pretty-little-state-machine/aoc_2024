@@ -8,12 +8,9 @@ fn build_elf_bags(input: &str) -> Vec<ElfBags> {
     bags.push(ElfBags::default());
 
     for line in input.split('\n') {
-        match line.trim_end() {
-            "" => bags.push(ElfBags::default()),
-            _ => {
-                let calories = line.trim_end().parse::<u32>().unwrap();
-                bags.last_mut().unwrap().calories += calories;
-            }
+        match line.trim_end().parse::<u32>() {
+            Ok(calories) => bags.last_mut().unwrap().calories += calories,
+            Err(_) => bags.push(ElfBags::default()),
         }
     }
     bags
