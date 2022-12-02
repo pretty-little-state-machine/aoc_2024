@@ -57,16 +57,22 @@ fn get_move_for_outcome(elf_shape: Shape, outcome: Outcome) -> Shape {
 
 #[inline(always)]
 fn get_round_outcome(elf_shape: Shape, player_shape: Shape) -> Outcome {
-    match [elf_shape, player_shape] {
-        [Rock, Rock] => Draw,
-        [Rock, Paper] => Win,
-        [Rock, Scissors] => Loss,
-        [Paper, Rock] => Loss,
-        [Paper, Paper] => Draw,
-        [Paper, Scissors] => Win,
-        [Scissors, Rock] => Win,
-        [Scissors, Paper] => Loss,
-        [Scissors, Scissors] => Draw,
+    match elf_shape {
+        Rock => match player_shape {
+            Rock => Draw,
+            Paper => Win,
+            Scissors => Loss,
+        },
+        Paper => match player_shape {
+            Rock => Loss,
+            Paper => Draw,
+            Scissors => Win,
+        },
+        Scissors => match player_shape {
+            Rock => Win,
+            Paper => Loss,
+            Scissors => Draw,
+        },
     }
 }
 
