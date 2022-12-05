@@ -46,24 +46,24 @@ fn parse_input_line(input: &str) -> (CleaningRange, CleaningRange) {
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let mut total: u32 = 0;
-    for line in input.lines() {
-        let (a, b) = parse_input_line(line);
-        if CleaningRange::fully_overlap(&a, &b) {
-            total += 1;
-        }
-    }
+    let total = input
+        .lines()
+        .filter(|line| {
+            let (a, b) = parse_input_line(line);
+            CleaningRange::fully_overlap(&a, &b)
+        })
+        .count() as u32;
     Some(total)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let mut total: u32 = 0;
-    for line in input.lines() {
-        let (a, b) = parse_input_line(line);
-        if CleaningRange::partial_overlap(&a, &b) {
-            total += 1;
-        }
-    }
+    let total = input
+        .lines()
+        .filter(|line| {
+            let (a, b) = parse_input_line(line);
+            CleaningRange::partial_overlap(&a, &b)
+        })
+        .count() as u32;
     Some(total)
 }
 
