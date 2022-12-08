@@ -1,19 +1,17 @@
 use std::collections::VecDeque;
-
+#[cfg(not(doctest))]
 /// Parses a sparsely populated text matrix with a filter character to extract input rows and a
 /// given text offset for chunking.
 ///
-/// Example:
-/// `parse_text_matrix(input, '[', 4, 1)` with the given input:
-/// ```
+/// parse_text_matrix(input, '[', 4, 1) with the given input:
+///
 ///     [D]
 /// [N] [C]
 /// [Z] [M] [P]
 ///  1   2   3
-/// ```
 ///
 /// Would return the following Vec<VecDeque<char>>:
-/// `[['Z', 'N'], ['M', 'C', 'D'], ['P']]`
+/// [['Z', 'N'], ['M', 'C', 'D'], ['P']]
 ///
 /// Note: I hate this function, it's really dirty!
 pub fn parse_text_matrix(
