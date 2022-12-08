@@ -62,13 +62,7 @@ fn build_filesystem(input: &str) -> DirectoryTree {
                     .unwrap()
                     .children
                     .push(child_path.clone());
-                filesystem.insert(
-                    child_path,
-                    Directory {
-                        file_sizes: 0,
-                        children: Vec::new(),
-                    },
-                );
+                filesystem.insert(child_path, Directory::default());
             }
             // File Listing Entry - Add the file size to the current path's sum.
             _ => {
