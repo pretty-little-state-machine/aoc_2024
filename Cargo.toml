@@ -10,3 +10,6 @@ default-run = "aoc"
 pico-args = "0.5.0"
 itertools = {version = "0.10.5", git = "https://www.github.com/ejmount/itertools"}
 rayon = "1.6.0"
+
+[profile.test]
+opt-level = 3
