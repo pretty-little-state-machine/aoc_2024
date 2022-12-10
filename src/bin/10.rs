@@ -41,6 +41,8 @@ pub fn read_instruction(input: &str) -> Instruction {
 }
 
 /// Constructs the output for the screen in a 6x40 character display as a String with newlines.
+/// Uses a technique from StackOverflow to make it quick without building Vecs & Strings:
+/// See: https://stackoverflow.com/a/57032118
 #[inline(always)]
 fn build_crt_output(input: [char; 240]) -> String {
     input
