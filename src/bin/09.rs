@@ -1,10 +1,10 @@
-use std::collections::{HashSet};
+use rustc_hash::{FxHashSet};
 type Point = (usize, usize); // (x, y)
 type Direction = char;
 
 #[derive(Debug)]
 struct Bridge {
-    visited: HashSet<Point>,
+    visited: FxHashSet<Point>,
     knots: [Point; 10],
 }
 
@@ -12,7 +12,7 @@ impl Default for Bridge {
     /// Initialize the simulation with the cursor of the knot in the middle of the bridge
     fn default() -> Self {
         Self {
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
             knots: [(300, 300); 10],
         }
     }
