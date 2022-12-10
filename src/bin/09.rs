@@ -1,10 +1,11 @@
 use rustc_hash::{FxHashSet};
-type Point = (usize, usize); // (x, y)
+type Point = (isize, isize); // (x, y)
 type Direction = char;
 
 #[derive(Debug)]
 struct Bridge {
     visited: FxHashSet<Point>,
+    last_position: [Point; 10],
     knots: [Point; 10],
 }
 
@@ -13,12 +14,14 @@ impl Default for Bridge {
     fn default() -> Self {
         Self {
             visited: FxHashSet::default(),
-            knots: [(300, 300); 10],
+            last_position:[(-10, -10); 10],
+            knots: [(0, 0); 10],
         }
     }
 }
 
 impl Bridge {
+    #[inline(always)]
     pub fn tick(&mut self, direction: Direction) {
         match direction {
             'R' => self.knots[0].0 += 1,
@@ -32,8 +35,8 @@ impl Bridge {
     /// Updates a segment based on the segment further up the rope
     #[inline(always)]
     fn update_knot(&mut self, knot_idx: usize) {
-        let delta_x = self.knots[knot_idx - 1].0 as isize - self.knots[knot_idx].0 as isize;
-        let delta_y = self.knots[knot_idx - 1].1 as isize - self.knots[knot_idx].1 as isize;
+        let delta_x = self.knots[knot_idx - 1].0 - self.knots[knot_idx].0;
+        let delta_y = self.knots[knot_idx - 1].1 - self.knots[knot_idx].1;
 
         if delta_x > 1 && delta_y > 1 {
             self.knots[knot_idx].0 += 1;
@@ -94,6 +97,11 @@ pub fn part_two(input: &str) -> Option<u32> {
             bridge.tick(direction);
             for knot_idx in 1..=9 {
                 bridge.update_knot(knot_idx);
+                if bridge.knots[knot_idx] == bridge.last_position[knot_idx] {
+                    break
+                } else {
+                    bridge.last_position[knot_idx] = bridge.knots[knot_idx]
+                }
             }
             bridge.visited.insert(bridge.knots[9]);
         }
