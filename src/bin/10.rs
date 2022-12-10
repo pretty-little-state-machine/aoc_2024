@@ -91,17 +91,16 @@ pub fn part_two(input: &str) -> Option<String> {
     let mut cpu = Cpu::default();
     for line in input.lines() {
         let instruction = read_instruction(line);
+        cpu.update_screen(&mut crt_screen);
         if 'a' == instruction.0 {
             // STAGE ADDX
-            cpu.update_screen(&mut crt_screen);
             cpu.cycles += 1;
-            //  EXECUTE ADDX
             cpu.update_screen(&mut crt_screen);
+            //  EXECUTE ADDX
             cpu.cycles += 1;
             cpu.x += instruction.1;
         } else {
             // EXECUTE NOOP
-            cpu.update_screen(&mut crt_screen);
             cpu.cycles += 1;
         }
     }
