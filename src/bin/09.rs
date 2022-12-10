@@ -1,12 +1,10 @@
-const GRID_SIZE: usize = 592;
-const START: usize = GRID_SIZE / 2;
-
+use std::collections::{HashSet};
 type Point = (usize, usize); // (x, y)
 type Direction = char;
 
 #[derive(Debug)]
 struct Bridge {
-    grid: Box<[[usize; GRID_SIZE]; GRID_SIZE]>,
+    visited: HashSet<Point>,
     knots: [Point; 10],
 }
 
@@ -14,8 +12,8 @@ impl Default for Bridge {
     /// Initialize the simulation with the cursor of the knot in the middle of the bridge
     fn default() -> Self {
         Self {
-            grid: Box::new([[0; GRID_SIZE]; GRID_SIZE]),
-            knots: [(START, START); 10],
+            visited: HashSet::new(),
+            knots: [(300, 300); 10],
         }
     }
 }
@@ -63,16 +61,6 @@ impl Bridge {
             self.knots[knot_idx].0 = self.knots[knot_idx - 1].0;
         }
     }
-
-    #[inline(always)]
-    fn mark_grid_visited(&mut self, knot_idx: usize) {
-        self.grid[self.knots[knot_idx].1][self.knots[knot_idx].0] = 1;
-    }
-
-    #[inline(always)]
-    fn count_visited(&self) -> usize {
-        self.grid.iter().map(|r| -> usize { r.iter().sum() }).sum()
-    }
 }
 
 #[inline(always)]
@@ -85,21 +73,21 @@ fn decode_line(input: &str) -> (Direction, usize) {
 
 pub fn part_one(input: &str) -> Option<u32> {
     let mut bridge = Bridge::default();
-    bridge.mark_grid_visited(0);
+    bridge.visited.insert(bridge.knots[1]);
     for line in input.lines() {
         let (direction, count) = decode_line(line);
         for _ in 0..count {
             bridge.tick(direction);
             bridge.update_knot(1);
-            bridge.mark_grid_visited(1);
+            bridge.visited.insert(bridge.knots[1]);
         }
     }
-    Some(bridge.count_visited() as u32)
+    Some(bridge.visited.len() as u32)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
     let mut bridge = Bridge::default();
-    bridge.mark_grid_visited(9);
+    bridge.visited.insert(bridge.knots[9]);
     for line in input.lines() {
         let (direction, count) = decode_line(line);
         for _ in 0..count {
@@ -107,10 +95,10 @@ pub fn part_two(input: &str) -> Option<u32> {
             for knot_idx in 1..=9 {
                 bridge.update_knot(knot_idx);
             }
-            bridge.mark_grid_visited(9);
+            bridge.visited.insert(bridge.knots[9]);
         }
     }
-    Some(bridge.count_visited() as u32)
+    Some(bridge.visited.len() as u32)
 }
 
 fn main() {
