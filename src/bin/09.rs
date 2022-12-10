@@ -1,4 +1,4 @@
-use rustc_hash::{FxHashSet};
+use rustc_hash::FxHashSet;
 type Point = (isize, isize); // (x, y)
 type Direction = char;
 
@@ -14,7 +14,7 @@ impl Default for Bridge {
     fn default() -> Self {
         Self {
             visited: FxHashSet::default(),
-            last_position:[(-10, -10); 10],
+            last_position: [(-10, -10); 10],
             knots: [(0, 0); 10],
         }
     }
@@ -98,7 +98,7 @@ pub fn part_two(input: &str) -> Option<u32> {
             for knot_idx in 1..=9 {
                 bridge.update_knot(knot_idx);
                 if bridge.knots[knot_idx] == bridge.last_position[knot_idx] {
-                    break
+                    break;
                 } else {
                     bridge.last_position[knot_idx] = bridge.knots[knot_idx]
                 }
