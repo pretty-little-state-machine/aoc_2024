@@ -19,5 +19,8 @@ target/
 /src/inputs
 !/src/inputs/.keep
 
+# Visualization Scratch folder
+/src/viz
+
 # Jetbrains
 .idea

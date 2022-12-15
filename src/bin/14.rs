@@ -1,22 +1,58 @@
-const OFFSET: usize = 1000;
-const CHAMBER_HEIGHT: usize = 600;
-const CHAMBER_WIDTH: usize = (600 + OFFSET) * 2;
+use image::{ImageBuffer, Rgb};
+use rand::Rng;
+
+const OFFSET: usize = 10;
+const CHAMBER_HEIGHT: usize = 165;
+const CHAMBER_WIDTH: usize = 675;
 const SAND_START: (usize, usize) = (0, 500 + OFFSET);
 
 struct Chamber {
-    grid: Vec<Vec<usize>>,
+    grid: Vec<usize>,
     floor_y: usize,
 }
 
+#[inline(always)]
 fn extract_points(input: &str) -> (usize, usize) {
-    let coords: Vec<usize> = input.split(",").collect::<Vec<&str>>().iter().map(|v| v.parse::<usize>().unwrap()).collect();
+    let coords: Vec<usize> = input
+        .split(',')
+        .collect::<Vec<&str>>()
+        .iter()
+        .map(|v| v.parse::<usize>().unwrap())
+        .collect();
     (*coords.first().unwrap(), *coords.get(1).unwrap())
+}
+
+#[inline(always)]
+fn cell_idx(x: usize, y: usize) -> usize {
+    y * CHAMBER_WIDTH + x
+}
+
+#[inline(always)]
+fn sand_color() -> Rgb<u8> {
+    let mut rng = rand::thread_rng();
+    let offset = rng.gen_range(0.7..1.0);
+    Rgb([
+        (217.0 * offset) as u8,
+        (217.0 * offset) as u8,
+        (135.0 * offset) as u8,
+    ])
+}
+
+#[inline(always)]
+fn rock_color() -> Rgb<u8> {
+    let mut rng = rand::thread_rng();
+    let offset = rng.gen_range(0.8..1.0);
+    Rgb([
+        (106.0 * offset) as u8,
+        (107.0 * offset) as u8,
+        (105.0 * offset) as u8,
+    ])
 }
 
 impl Chamber {
     fn new(input: &str) -> Self {
         let mut slf = Self {
-            grid: vec![vec![0; CHAMBER_WIDTH]; CHAMBER_HEIGHT],
+            grid: vec![0; CHAMBER_WIDTH * CHAMBER_HEIGHT],
             floor_y: 0,
         };
 
@@ -43,84 +79,83 @@ impl Chamber {
 
     fn drop_sand(&mut self) -> bool {
         let mut x = SAND_START.1;
-        for y in SAND_START.0..=CHAMBER_HEIGHT {
-            if self.grid[y][x] != 0 {
-                return false; // Can't spawn sand! Tunnel is blocked.
+        for y in SAND_START.0..CHAMBER_HEIGHT - 1 {
+            //println!("{} {}", x, y);
+            if self.grid[cell_idx(x, y)] != 0 {
+                return false;
             }
-            // println!("DROP: {}, {}", x, y);
-            // Fall down
-            if y + 1 >= CHAMBER_HEIGHT {
-                return false;  // Out of bounds
-            } else if self.grid[y + 1][x] == 0 {
+            if x + 1 >= CHAMBER_WIDTH || x == 0 {
+                return false;
+            }
+            if self.grid[cell_idx(x, y + 1)] == 0 {
                 continue;
-            }
-            // Attempt fall down and to the left
-            if x == 0 {
-                return false; // Out of bounds
-            } else if self.grid[y + 1][x - 1] == 0 {
+            } else if self.grid[cell_idx(x - 1, y + 1)] == 0 {
                 x -= 1;
                 continue;
-            }
-            // Attempt fall down and to the right
-            if x + 1 >= CHAMBER_WIDTH {
-                return false; // Out of bounds
-            } else if self.grid[y + 1][x + 1] == 0 {
+            } else if self.grid[cell_idx(x + 1, y + 1)] == 0 {
                 x += 1;
                 continue;
+            } else {
+                self.grid[cell_idx(x, y)] = 2;
+                return true;
             }
-            // If we aren't out of bounds and haven't continued the loop the grain is at rest
-            self.grid[y][x] = 2;
-            // println!("STOP: {}, {}", x, y);
-            break;
         }
-        true
+        false
+    }
+
+    fn img(&self, step: usize) {
+        let scale: u32 = 4;
+        let start_x: u32 = 400;
+        let end_x: u32 = (CHAMBER_WIDTH) as u32;
+
+        let width = ((end_x - start_x) * scale) as u32;
+        let height = (CHAMBER_HEIGHT as u32 * scale) as u32;
+
+        let mut imgbuf = ImageBuffer::new(width - 300, height);
+        // Iterate over the coordinates and pixels of the image
+        for (x, y, pixel) in imgbuf.enumerate_pixels_mut() {
+            let grid_x = ((x / scale) + start_x) as usize;
+            let grid_y = (y / scale) as usize;
+            match self.grid[cell_idx(grid_x, grid_y)] {
+                0 => *pixel = Rgb([0_u8, 0_u8, 0_u8]),
+                1 => *pixel = rock_color(),
+                2 => *pixel = sand_color(),
+                _ => unreachable!("Undefined block type"),
+            }
+        }
+        let file_name = format!("src/viz/{:0>4}.png", step);
+        imgbuf.save(file_name).expect("Coulnd't build output image");
     }
 
     fn add_horizontal_stone(&mut self, start_x: usize, end_x: usize, y: usize) {
-        let (x0, x1) =
-            if start_x > end_x {
-                (end_x, start_x)
-            } else {
-                (start_x, end_x)
-            };
+        let (x0, x1) = if start_x > end_x {
+            (end_x, start_x)
+        } else {
+            (start_x, end_x)
+        };
         for x in x0..=x1 {
-            self.grid[y][x] = 1;
+            self.grid[cell_idx(x, y)] = 1;
         }
     }
 
     fn add_vertical_stone(&mut self, start_y: usize, end_y: usize, x: usize) {
-        let (y0, y1) =
-            if start_y > end_y {
-                (end_y, start_y)
-            } else {
-                (start_y, end_y)
-            };
+        let (y0, y1) = if start_y > end_y {
+            (end_y, start_y)
+        } else {
+            (start_y, end_y)
+        };
         for y in y0..=y1 {
-            self.grid[y][x] = 1;
-        }
-    }
-
-    fn print(&self) {
-        for y in 0..CHAMBER_HEIGHT {
-            for x in 494..CHAMBER_WIDTH {
-                print!("{}",
-                       match self.grid[y][x] {
-                           0 => ".".to_string(),
-                           1 => "#".to_string(),
-                           2 => "o".to_string(),
-                           _ => unreachable!("Unknown particle in cave grid!"),
-                       });
-            }
-            println!();
+            self.grid[cell_idx(x, y)] = 1;
         }
     }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
     let mut chamber = Chamber::new(input);
-    let mut steps = 0;
+    let mut steps: u32 = 0;
     while chamber.drop_sand() {
         steps += 1;
+        // chamber.img(steps as usize);
     }
     Some(steps)
 }
