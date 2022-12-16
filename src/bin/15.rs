@@ -1,6 +1,6 @@
-use itertools::{all, any};
+use itertools::any;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 type Beacons = HashMap<(isize, isize), Beacon>;
 
@@ -17,7 +17,6 @@ struct Beacon {
 #[derive(Debug, Clone, Copy)]
 struct Sensor {
     location: Point,
-    beacon_key: (isize, isize),
     range: usize,
 }
 
@@ -25,9 +24,46 @@ impl Sensor {
     pub fn new(location: Point, beacon: Point) -> Self {
         Self {
             location,
-            beacon_key: (beacon.x, beacon.y),
             range: manhattan(location, beacon),
         }
+    }
+
+    /// A perimeter is drawn around the scanning range as a diagonal line starting one block higher
+    /// than the range. (0,0) is considered the top-left corner of the field for relative movement.
+    ///
+    /// Only values between 0 and search_distance inclusively are added to the Vec.
+    pub fn get_perimeter_squares(&self) -> Vec<Point> {
+        let mut points: Vec<Point> = Vec::with_capacity(100);
+        let mut current_point = Point {
+            x: self.location.x,
+            y: self.location.y - self.range as isize - 1,
+        };
+        points.push(current_point);
+        // Top to Right
+        for _ in 0..=self.range {
+            current_point.x += 1;
+            current_point.y += 1;
+            points.push(current_point);
+        }
+        // Right to Bottom
+        for _ in 0..=self.range {
+            current_point.x -= 1;
+            current_point.y += 1;
+            points.push(current_point);
+        }
+        // Bottom to Left
+        for _ in 0..=self.range {
+            current_point.x -= 1;
+            current_point.y -= 1;
+            points.push(current_point);
+        }
+        // Left to Top (Omitting the last block since it was done first)
+        for _ in 0..self.range {
+            current_point.x += 1;
+            current_point.y -= 1;
+            points.push(current_point);
+        }
+        points
     }
 }
 
@@ -74,40 +110,64 @@ fn build_sensor_array(input: &str) -> (Vec<Sensor>, Beacons) {
     (sensors, beacons)
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+pub fn part_one(input: &str) -> Option<usize> {
     let row_to_test = 2000000;
-    let (sensor_array, beacons) = build_sensor_array(input);
-    let mut total: u32 = 0;
-
-    for x in -15_500_000..=15_500_000 {
-        if is_covered(&sensor_array, Point { x, y: row_to_test }) {
-            total += 1;
+    //let row_to_test = 10;
+    let (mut sensor_array, beacons) = build_sensor_array(input);
+    // Filter sensors that aren't covering the current row at all
+    sensor_array.retain(|s| {
+        (s.location.y - s.range as isize <= row_to_test)
+            && (s.location.y + s.range as isize >= row_to_test)
+    });
+    // Find all X Squares for the given row per sensor. We can use the delta_y to determine the
+    // range of X since the covered space always shrinks linearly with delta_y.
+    let mut range: (isize, isize) = (0, 0);
+    for sensor in sensor_array {
+        let delta_y = -((row_to_test - sensor.location.y).abs());
+        let min = -(sensor.range as isize + delta_y) + sensor.location.x;
+        let max = (sensor.range as isize + delta_y) + sensor.location.x;
+        if min < range.0 {
+            range.0 = min
+        }
+        if max > range.1 {
+            range.1 = max
         }
     }
-    // Subtract beacons that were on the line
+    // We must add 1 to make this math _inclusive_
+    let mut total = range.1 - range.0 + 1;
+    // Subtract any beacons that were on the line
     for (_, beacon) in beacons {
         if beacon.location.y == row_to_test {
             total -= 1;
         }
     }
-    Some(total)
+    Some(total as usize)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    // const MAX_SEARCH_DISTANCE: usize = 4_000_000;
-    const MAX_SEARCH_DISTANCE: usize = 20;
-    let (sensor_array, beacons) = build_sensor_array(input);
+pub fn part_two(input: &str) -> Option<usize> {
+    const MAX_SEARCH_DISTANCE: isize = 4_000_000;
+    //const MAX_SEARCH_DISTANCE: isize = 20;
+    let (sensor_array, _) = build_sensor_array(input);
     let mut missing_beacon: Option<Beacon> = None;
-    for y in 0..=MAX_SEARCH_DISTANCE {
-        for x in 0..=MAX_SEARCH_DISTANCE {
-            if !is_covered(&sensor_array, Point { x: x as isize, y: y as isize }) {
-                missing_beacon = Some(Beacon { location: Point { x: x as isize, y: y as isize } });
+
+    let mut missing_beacons: Vec<Point> = Vec::new();
+    'sensor: for sensor in &sensor_array {
+        for square in sensor.get_perimeter_squares() {
+            if square.x >= 0
+                && square.y >= 0
+                && square.x <= MAX_SEARCH_DISTANCE
+                && square.y <= MAX_SEARCH_DISTANCE
+                && !is_covered(&sensor_array, square)
+            {
+                missing_beacons.push(square);
+                missing_beacon = Some(Beacon { location: square });
+                break 'sensor;
             }
         }
     }
-    let mut tuning_frequency: u32 = 0;
+    let mut tuning_frequency: usize = 0;
     if let Some(beacon) = missing_beacon {
-        tuning_frequency = (beacon.location.x * 4_000_000 + beacon.location.y) as u32;
+        tuning_frequency = beacon.location.x as usize * 4_000_000 + beacon.location.y as usize;
     }
     Some(tuning_frequency)
 }
@@ -121,6 +181,13 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_perimeter() {
+        let sensor = Sensor::new(Point { x: 2, y: 18 }, Point { x: -2, y: 15 });
+        assert_eq!(sensor.range, 7);
+        assert_eq!(32, sensor.get_perimeter_squares().len());
+    }
 
     #[test]
     fn test_is_covered() {
