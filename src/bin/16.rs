@@ -93,7 +93,7 @@ fn find_best_next(
                 continue;
             }
             if let Some(distance) =
-            node_distances.get(&(current_valve.node_index.unwrap(), valve.node_index.unwrap()))
+                node_distances.get(&(current_valve.node_index.unwrap(), valve.node_index.unwrap()))
             {
                 let flow_rate = (step.saturating_sub(*distance) * valve.flow_rate);
                 // println!("{} Estimated Flow Rate {}, {}", step, decode_valve_id(valve.id), flow_rate);
@@ -120,7 +120,7 @@ fn decode_valve_id(valve_id: usize) -> String {
         char::from_u32(a as u32).unwrap(),
         char::from_u32(b as u32).unwrap()
     )
-        .to_string()
+    .to_string()
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
@@ -135,7 +135,7 @@ pub fn part_one(input: &str) -> Option<u32> {
     // We won't be visiting more than maybe 10 valves
     for _ in 0..20 {
         if let (Some(next_valve_id), Some(distance)) =
-        find_best_next(current_valve_id, &node_distances, &mut pipeline)
+            find_best_next(current_valve_id, &node_distances, &mut pipeline)
         {
             let new_valve = pipeline.get_mut(&next_valve_id).unwrap();
             current_valve_id = new_valve.id;
@@ -166,33 +166,33 @@ pub fn part_one(input: &str) -> Option<u32> {
     }
 
     /*
-       while minutes <= 30 {
-           if let (Some(next_valve_id), Some(distance)) =
-           find_best_next(current_valve_id, &node_distances, &mut pipeline)
-           {
-               // Move to it while letting out pressure
-               for _ in 0..distance {
-                   total_pressure_released += pressure_per_tick;
-                   minutes += 1;
-                   if minutes == 30 {
-                       break;
-                   }
-               }
-               // Set it as the current valve and open it
-               let new_valve = pipeline.get_mut(&next_valve_id).unwrap();
-               new_valve.is_open = true;
-               // We must tick BEFORE we open as the valve won't increase flow until the next tick
-               total_pressure_released += pressure_per_tick;
-               // Now the valve is open and the flow may increase for future ticks.
-               pressure_per_tick += new_valve.flow_rate;
-               current_valve_id = new_valve.id;
-               minutes += 1;
-           } else {
-               minutes += 1;
-           }
-       }
+      while minutes <= 30 {
+          if let (Some(next_valve_id), Some(distance)) =
+          find_best_next(current_valve_id, &node_distances, &mut pipeline)
+          {
+              // Move to it while letting out pressure
+              for _ in 0..distance {
+                  total_pressure_released += pressure_per_tick;
+                  minutes += 1;
+                  if minutes == 30 {
+                      break;
+                  }
+              }
+              // Set it as the current valve and open it
+              let new_valve = pipeline.get_mut(&next_valve_id).unwrap();
+              new_valve.is_open = true;
+              // We must tick BEFORE we open as the valve won't increase flow until the next tick
+              total_pressure_released += pressure_per_tick;
+              // Now the valve is open and the flow may increase for future ticks.
+              pressure_per_tick += new_valve.flow_rate;
+              current_valve_id = new_valve.id;
+              minutes += 1;
+          } else {
+              minutes += 1;
+          }
+      }
 
-     */
+    */
     Some(total_pressure_released as u32)
 }
 
@@ -233,7 +233,7 @@ pub fn part_two(input: &str) -> Option<u32> {
             println!("Elephant opened {}", decode_valve_id(pal_current_valve_id));
             pressure_per_tick += pal_new_flow_rate;
             if let (Some(pal_next_best_id), Some(pal_distance)) =
-            find_best_next(pal_current_valve_id, &node_distances, &mut pipeline)
+                find_best_next(pal_current_valve_id, &node_distances, &mut pipeline)
             {
                 println!(
                     "Elephant selected {} next",
@@ -258,7 +258,7 @@ pub fn part_two(input: &str) -> Option<u32> {
             println!("I opened {}", decode_valve_id(my_current_valve_id));
             pressure_per_tick += my_new_flow_rate;
             if let (Some(my_next_best_id), Some(distance)) =
-            find_best_next(my_current_valve_id, &node_distances, &mut pipeline)
+                find_best_next(my_current_valve_id, &node_distances, &mut pipeline)
             {
                 println!("I selected {} next", decode_valve_id(my_next_best_id));
                 my_move_penalty = distance - 1;
