@@ -1,39 +1,58 @@
+use std::collections::HashSet;
 use crate::JetDirection::{Left, Right};
-use crate::RockShape::{Bar, Line, Plus, ReverseL, Square};
+use crate::Shape::{Bar, Line, Plus, ReverseL, Square};
+use itertools::{all, any};
+use rustc_hash::FxHashSet;
 use std::fmt;
 
+#[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
+struct Point {
+    x: isize,
+    y: isize,
+}
+
 struct Chamber {
-    grid: Vec<u8>,
+    grid: FxHashSet<Point>,
+    height: isize,
 }
 
 impl Default for Chamber {
     fn default() -> Self {
-        Self {
-            grid: Vec::with_capacity(20_000),
+        let mut slf = Self {
+            grid: FxHashSet::default(),
+            height: 0,
+        };
+        // Add a floor
+        for x in 0..=7 {
+            slf.grid.insert(Point { x, y: 0 });
         }
+        slf
     }
 }
 
 impl Chamber {
-    fn add_rock(&mut self, rock: &Rock, bottom_rock_line: usize, shift: isize) {
-        for row in 0..4 {
-            let rock_byte = isize_shift(rock.get_row_bitmask(row), shift);
-            let grid_byte = self.grid.get_mut(bottom_rock_line + row).unwrap();
-            println!(
-                "Shift: {} Rock: {:08b},  Grid: {:08b}",
-                shift, rock_byte, grid_byte
-            );
-            *grid_byte |= rock_byte;
+    /// Returns true if the collision occurs and adds the rock to the field.
+    /// Note that this function will move the piece up on the y-axis offset to avoid the overlap.
+    fn collision(&mut self, rock: &Rock) -> bool {
+        let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| *p));
+        let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
+        if intersection.is_empty() {
+            false
+        } else {
+            for p in rock_set {
+                self.grid.insert(Point { x: p.x, y: p.y + 1 });
+            }
+            true
         }
     }
 }
 
 impl fmt::Debug for Chamber {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for line in self.grid.iter().rev() {
-            write!(f, "|").unwrap();
-            for bit in 0..7 {
-                if 1 == (line >> bit) & 0x1 {
+        for y in (1..10).rev() {
+            write!(f, "{y}|").unwrap();
+            for x in 0..7 {
+                if self.grid.contains(&Point { x, y }) {
                     write!(f, "#").unwrap();
                 } else {
                     write!(f, ".").unwrap();
@@ -41,109 +60,8 @@ impl fmt::Debug for Chamber {
             }
             write!(f, "|\n").unwrap();
         }
+        write!(f, "0+-------+\n").unwrap();
         Ok(())
-    }
-}
-
-/// A block shape. Blocks are encoded as a u16 with 4 bits representing a row bottom to top.
-#[repr(u32)]
-#[derive(Copy, Clone, Debug)]
-enum RockShape {
-    // ........
-    // ........
-    // ........
-    // ..####..
-    Bar = 0b00000000_00000000_00000000_00111100,
-    // ........
-    // ...#....
-    // ..###...
-    // ...#....
-    Plus = 0b00000000_00010000_00111000_00010000,
-    // ........
-    // ....#...
-    // ....#...
-    // ..###...
-    ReverseL = 0b00000000_00001000_00001000_00111000,
-    // ..#.....
-    // ..#.....
-    // ..#.....
-    // ..#.....
-    Line = 0b00100000_00100000_00100000_00100000,
-    // ........
-    // ........
-    // ..##....
-    // ..##....
-    Square = 0b00000000_00000000_00110000_00110000,
-}
-
-fn isize_shift(byte: u8, shift: isize) -> u8 {
-    if shift > 0 {
-        byte >> shift
-    } else if shift < 0 {
-        ((byte as u16) << -shift) as u8
-    } else {
-        byte
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Rock {
-    shape: RockShape,
-}
-
-impl Rock {
-    fn new() -> Self {
-        Self { shape: Bar }
-    }
-
-    fn get_height(&self) -> usize {
-        match self.shape {
-            Bar => 1,
-            Plus => 3,
-            ReverseL => 3,
-            Line => 4,
-            Square => 2,
-        }
-    }
-
-    fn update_shape(&mut self) {
-        match self.shape {
-            Bar => self.shape = Plus,
-            Plus => self.shape = ReverseL,
-            ReverseL => self.shape = Line,
-            Line => self.shape = Square,
-            Square => self.shape = Bar,
-        }
-    }
-
-    fn get_row_bitmask(&self, row: usize) -> u8 {
-        (((self.shape as u32) >> (row * 8)) & 0xFF) as u8
-    }
-
-    /// Returns true if any row in the block would hit a wall
-    fn would_hit_side(&self, shift: isize) -> bool {
-        for row in 0..3 {
-            let test_byte = isize_shift(self.get_row_bitmask(row), shift);
-            //println!("Test byte with shift: {} {:08b}", shift, test_byte);
-            // Hit the left wall
-            if 1 == (test_byte >> 7) & 0x1 {
-                return true;
-            }
-            // Hit the right wall, remember the walls are 7 bits wide, not 8 so we must shift
-            if 1 == (test_byte >> 1) & 0x1 {
-                return true;
-            }
-        }
-        false
-    }
-}
-
-impl Iterator for Rock {
-    type Item = Rock;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.update_shape();
-        Some(self.clone())
     }
 }
 
@@ -183,69 +101,181 @@ impl GasJet {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+enum Shape {
+    Bar,
+    Plus,
+    ReverseL,
+    Line,
+    Square,
+}
+
+#[derive(Clone, Debug)]
+struct Rock {
+    shape: Shape,
+    points: Vec<Point>,
+    offset: Point,
+}
+
+fn build_shape(shape: Shape) -> Vec<Point> {
+    match shape {
+        // ####
+        Bar => {
+            vec![
+                Point { x: 0, y: 0 },
+                Point { x: 1, y: 0 },
+                Point { x: 2, y: 0 },
+                Point { x: 3, y: 0 },
+            ]
+        }
+        // .#.
+        // ###
+        // .#.
+        Plus => {
+            vec![
+                Point { x: 0, y: 1 },
+                Point { x: 0, y: 1 },
+                Point { x: 1, y: 0 },
+                Point { x: 1, y: 1 },
+                Point { x: 1, y: 2 },
+                Point { x: 2, y: 1 },
+            ]
+        }
+        // ..#
+        // ..#
+        // ###
+        ReverseL => {
+            vec![
+                Point { x: 0, y: 0 },
+                Point { x: 1, y: 0 },
+                Point { x: 2, y: 0 },
+                Point { x: 2, y: 1 },
+                Point { x: 2, y: 2 },
+            ]
+        }
+        // #
+        // #
+        // #
+        // #
+        Line => {
+            vec![
+                Point { x: 0, y: 0 },
+                Point { x: 0, y: 1 },
+                Point { x: 0, y: 2 },
+                Point { x: 0, y: 3 },
+            ]
+        }
+        // ##
+        // ##
+        Square => {
+            vec![
+                Point { x: 0, y: 0 },
+                Point { x: 0, y: 1 },
+                Point { x: 1, y: 0 },
+                Point { x: 1, y: 1 },
+            ]
+        }
+    }
+}
+
+impl Rock {
+    fn new() -> Self {
+        Self {
+            shape: Bar,
+            points: build_shape(Bar),
+            offset: Point { x: 0, y: 0 },
+        }
+    }
+
+    fn get_height(&self) -> isize {
+        match self.shape {
+            Bar => 1,
+            Plus => 3,
+            ReverseL => 3,
+            Line => 4,
+            Square => 2,
+        }
+    }
+
+    fn update_shape(&mut self) {
+        match self.shape {
+            Bar => self.shape = Plus,
+            Plus => self.shape = ReverseL,
+            ReverseL => self.shape = Line,
+            Line => self.shape = Square,
+            Square => self.shape = Bar,
+        }
+        self.points = build_shape(self.shape);
+    }
+
+    /// Moves up or down. Collision detection is NOT performed on this operation.
+    fn move_vertical(&mut self, amount: isize) {
+        self.points.iter_mut().for_each(|p| p.y += amount);
+    }
+
+    /// Attempts to shift the object within the playing field based on wall boundaries.
+    fn move_horizontal(&mut self, amount: isize) {
+        if all(
+            self.points
+                .iter()
+                .map(|p| p.x + amount >= 0 && p.x + amount < 7)
+                .collect::<Vec<bool>>(),
+            |b| b == true,
+        ) {
+            println!("Shifting by {amount}");
+            self.points.iter_mut().for_each(|p| p.x += amount);
+        } else {
+            println!("out of bounds");
+        }
+        println!("{self:?}");
+    }
+}
+
+impl Iterator for Rock {
+    type Item = Rock;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next = self.clone();
+        next.update_shape();
+        Some(next)
+    }
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let mut chamber = Chamber::default();
     let mut rock = Rock::new();
     let mut gas_jet = GasJet::new(input);
 
-    let mut total_rocks: usize = 0;
-    let mut current_floor_height: usize = 0;
-    let mut rock_bottom_layer_height: usize = 3;
-    let mut shift: isize = 0;
-    // Spawn in a block
-    for _ in 0..5 {
-        chamber.grid.push(0);
-    }
+    chamber.height = 3;
+    // Set the initial position of our first rock.
+    rock.move_horizontal(2);
+    rock.move_vertical(chamber.height);
+    println!("{rock:?}");
+
     let mut i = 0;
-    while i <= 20 {
-        i += 1;
-        // Shift the collision mask via the jet with edge collision detection
-        println!("Jet Pushes {:?}", gas_jet.get_direction());
+    while i < 20 {
+        // Bump with a jet
         match gas_jet.get_direction() {
-            Right => {
-                if !rock.would_hit_side(shift - 1) {
-                    shift -= 1;
-                    println!("Shifted rock right, shift: {}", shift);
-                } else {
-                    println!("Rock can't go further right");
-                }
-            }
-            Left => {
-                if !rock.would_hit_side(shift + 1) {
-                    shift += 1;
-                    println!("Shifted rock left, shift: {}", shift);
-                } else {
-                    println!("Rock can't go further left");
-                }
-            }
+            Right => rock.move_horizontal(1),
+            Left => rock.move_horizontal(-1),
         }
         gas_jet.next();
+        // Drop Down. If this is a collision we stop.
 
-        // Rock collision on the grid
-        if rock_bottom_layer_height == 0
-            || isize_shift(rock.get_row_bitmask(0), shift)
-                & chamber.grid.get(rock_bottom_layer_height - 1).unwrap()
-                > 0
-        {
-            println!("Collision!");
-            chamber.add_rock(&rock, rock_bottom_layer_height, shift);
-            current_floor_height += rock.get_height() - 1;
-            // Prepare for the next round
-            println!("NEW STONE");
-            total_rocks += 1;
+        if chamber.collision(&rock) {
+            // Update the chamber height, make a new piece and offset it appropriately
+            chamber.height += rock.get_height();
+            println!("{chamber:?}");
+            println!();
+            println!("made a new rock!");
             rock = rock.next().unwrap();
-            rock_bottom_layer_height = current_floor_height + 4;
-            shift = 0;
-            for _ in 0..4 {
-                chamber.grid.push(0);
-            }
+            rock.move_horizontal(2);
+            rock.move_vertical(chamber.height);
+        } else {
+            rock.move_vertical(-1);
         }
-        // Drop down a tile
-        println!("Stone is falling: {}", rock_bottom_layer_height);
-        rock_bottom_layer_height -= 1;
-        println!("{:?}", chamber);
+        i += 1;
     }
-    println!("{:?}", chamber);
 
     Some(0)
 }
@@ -263,6 +293,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::iter::Rev;
 
     #[test]
     fn test_part_one() {
