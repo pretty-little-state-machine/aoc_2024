@@ -31,19 +31,27 @@ impl Default for Chamber {
 }
 
 impl Chamber {
-    /// Returns true if the collision occurs and adds the rock to the field.
+    /// Returns true if the collision occurs and adds the rock to the field if insert is true.
     /// Note that this function will move the piece up on the y-axis offset to avoid the overlap.
-    fn collision(&mut self, rock: &Rock) -> bool {
+    fn collision(&mut self, rock: &Rock, insert: bool) -> bool {
         let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| *p));
         let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
         if intersection.is_empty() {
             false
         } else {
-            for p in rock_set {
-                self.grid.insert(Point { x: p.x, y: p.y + 1 });
+            if insert {
+                for p in rock_set {
+                    self.grid.insert(Point { x: p.x, y: p.y + 1 });
+                }
             }
             true
         }
+    }
+
+    fn jet_collision(&mut self, rock: &Rock, offset: isize) -> bool {
+        let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| Point { x: p.x + offset, y: p.y + 1 }));
+        let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
+        !intersection.is_empty()
     }
 }
 
@@ -114,7 +122,6 @@ enum Shape {
 struct Rock {
     shape: Shape,
     points: Vec<Point>,
-    offset: Point,
 }
 
 fn build_shape(shape: Shape) -> Vec<Point> {
@@ -183,14 +190,13 @@ impl Rock {
         Self {
             shape: Bar,
             points: build_shape(Bar),
-            offset: Point { x: 0, y: 0 },
         }
     }
 
     fn get_height(&self) -> isize {
         match self.shape {
             Bar => 1,
-            Plus => 3,
+            Plus => 2,
             ReverseL => 3,
             Line => 4,
             Square => 2,
@@ -213,8 +219,9 @@ impl Rock {
         self.points.iter_mut().for_each(|p| p.y += amount);
     }
 
-    /// Attempts to shift the object within the playing field based on wall boundaries.
-    fn move_horizontal(&mut self, amount: isize) {
+    /// Attempts to shift the object within the playing field based on wall boundaries or other
+    /// pieces.
+    fn move_horizontal(&mut self, amount: isize, chamber: &mut Chamber) {
         if all(
             self.points
                 .iter()
@@ -222,12 +229,16 @@ impl Rock {
                 .collect::<Vec<bool>>(),
             |b| b == true,
         ) {
-            println!("Shifting by {amount}");
-            self.points.iter_mut().for_each(|p| p.x += amount);
+            if !chamber.jet_collision(&self, amount) {
+                // println!("Shifting by {amount}");
+                self.points.iter_mut().for_each(|p| p.x += amount);
+            } else {
+                // println!("Hit another piece");
+            }
         } else {
-            println!("out of bounds");
+            // println!("out of bounds");
         }
-        println!("{self:?}");
+        // println!("{self:?}");
     }
 }
 
@@ -241,43 +252,47 @@ impl Iterator for Rock {
     }
 }
 
-pub fn part_one(input: &str) -> Option<u32> {
+pub fn part_one(input: &str) -> Option<isize> {
     let mut chamber = Chamber::default();
     let mut rock = Rock::new();
     let mut gas_jet = GasJet::new(input);
 
     chamber.height = 3;
     // Set the initial position of our first rock.
-    rock.move_horizontal(2);
     rock.move_vertical(chamber.height);
-    println!("{rock:?}");
+    rock.move_horizontal(2, &mut chamber);
 
-    let mut i = 0;
-    while i < 20 {
+    let mut total_rocks = 1;
+    loop {
         // Bump with a jet
         match gas_jet.get_direction() {
-            Right => rock.move_horizontal(1),
-            Left => rock.move_horizontal(-1),
+            Right => rock.move_horizontal(1, &mut chamber),
+            Left => rock.move_horizontal(-1, &mut chamber),
         }
         gas_jet.next();
         // Drop Down. If this is a collision we stop.
 
-        if chamber.collision(&rock) {
+        if chamber.collision(&rock, true) {
+            // println!("Collision!");
+            total_rocks += 1;
+            if total_rocks == 2_022 {
+                break;
+            }
             // Update the chamber height, make a new piece and offset it appropriately
-            chamber.height += rock.get_height();
-            println!("{chamber:?}");
-            println!();
-            println!("made a new rock!");
+            chamber.height = chamber.grid.iter().max_by(|a, b| a.y.cmp(&b.y)).unwrap().y + 3;
+            // println!("{chamber:?}");
+            // println!();
+            // println!("made a new rock @ y = {}!", chamber.height);
             rock = rock.next().unwrap();
-            rock.move_horizontal(2);
+            // Critical that the piece moves up before horizontal moves to avoid invalid collisions
             rock.move_vertical(chamber.height);
+            rock.move_horizontal(2, &mut chamber);
         } else {
             rock.move_vertical(-1);
         }
-        i += 1;
     }
 
-    Some(0)
+    Some(chamber.height + 1)
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
