@@ -1,9 +1,10 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use crate::JetDirection::{Left, Right};
 use crate::Shape::{Bar, Line, Plus, ReverseL, Square};
 use itertools::{all, any};
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHasher, FxHashMap, FxHashSet};
 use std::fmt;
+use std::hash::BuildHasherDefault;
 
 #[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
 struct Point {
@@ -13,7 +14,7 @@ struct Point {
 
 struct Chamber {
     grid: FxHashSet<Point>,
-    height: isize,
+    height: usize,
 }
 
 impl Default for Chamber {
@@ -57,10 +58,10 @@ impl Chamber {
 
 impl fmt::Debug for Chamber {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for y in (1..10).rev() {
+        for y in (1..=self.height).rev() {
             write!(f, "{y}|").unwrap();
             for x in 0..7 {
-                if self.grid.contains(&Point { x, y }) {
+                if self.grid.contains(&Point { x, y: y as isize }) {
                     write!(f, "#").unwrap();
                 } else {
                     write!(f, ".").unwrap();
@@ -109,7 +110,7 @@ impl GasJet {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 enum Shape {
     Bar,
     Plus,
@@ -252,14 +253,14 @@ impl Iterator for Rock {
     }
 }
 
-pub fn part_one(input: &str) -> Option<isize> {
+pub fn part_one(input: &str) -> Option<usize> {
     let mut chamber = Chamber::default();
     let mut rock = Rock::new();
     let mut gas_jet = GasJet::new(input);
 
     chamber.height = 3;
     // Set the initial position of our first rock.
-    rock.move_vertical(chamber.height);
+    rock.move_vertical(chamber.height as isize);
     rock.move_horizontal(2, &mut chamber);
 
     let mut total_rocks = 1;
@@ -270,33 +271,92 @@ pub fn part_one(input: &str) -> Option<isize> {
             Left => rock.move_horizontal(-1, &mut chamber),
         }
         gas_jet.next();
-        // Drop Down. If this is a collision we stop.
-
-        if chamber.collision(&rock, true) {
-            // println!("Collision!");
+        // Now Drop
+        if !chamber.collision(&rock, true) {
+            rock.move_vertical(-1);
+        } else {
+            chamber.height = chamber.grid.iter().max_by(|a, b| a.y.cmp(&b.y)).unwrap().y as usize;
             total_rocks += 1;
-            if total_rocks == 2_022 {
+            if total_rocks > 2_022 {
                 break;
             }
-            // Update the chamber height, make a new piece and offset it appropriately
-            chamber.height = chamber.grid.iter().max_by(|a, b| a.y.cmp(&b.y)).unwrap().y + 3;
-            // println!("{chamber:?}");
-            // println!();
-            // println!("made a new rock @ y = {}!", chamber.height);
+            chamber.height += 3;
             rock = rock.next().unwrap();
             // Critical that the piece moves up before horizontal moves to avoid invalid collisions
-            rock.move_vertical(chamber.height);
+            rock.move_vertical(chamber.height as isize);
             rock.move_horizontal(2, &mut chamber);
-        } else {
-            rock.move_vertical(-1);
         }
     }
 
-    Some(chamber.height + 1)
+    Some(chamber.height)
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_two(input: &str) -> Option<usize> {
+    const GOAL: usize = 1_000_000_000_000;
+    let mut chamber = Chamber::default();
+    let mut rock = Rock::new();
+    let mut gas_jet = GasJet::new(input);
+
+    // Key: Hash of top line contents, jet position and piece type. Value of top line height & rocks
+    let mut repeat_hash: HashMap<(usize, Shape, usize), (usize, usize), BuildHasherDefault<FxHasher>> = FxHashMap::default();
+    let mut seen_repeats = 0;
+    chamber.height = 3;
+    // Set the initial position of our first rock.
+    rock.move_vertical(chamber.height as isize);
+    rock.move_horizontal(2, &mut chamber);
+
+    let mut top_from_repeats = 0;
+    let mut total_rocks: usize = 1;
+    loop {
+        // Bump with a jet
+        match gas_jet.get_direction() {
+            Right => rock.move_horizontal(1, &mut chamber),
+            Left => rock.move_horizontal(-1, &mut chamber),
+        }
+        gas_jet.next();
+        // Now Drop
+        if !chamber.collision(&rock, true) {
+            rock.move_vertical(-1);
+        } else {
+            chamber.height = chamber.grid.iter().max_by(|a, b| a.y.cmp(&b.y)).unwrap().y as usize;
+
+            // Bound this to only run a bit after the simulation starts and if we haven't yet found
+            // the repeat block.
+            if chamber.height > 2000 && seen_repeats < 1 {
+                // The top-most line is just a binary representation of the filled squares
+                let mut top_line: usize = 0;
+                for bit in 0..7 {
+                    if chamber.grid.contains(&Point { x: bit, y: chamber.height as isize }) {
+                        top_line |= 1 << bit;
+                    }
+                }
+                // Create a hash of the current piece shape and the jet acting on it and the line
+                let hash = (gas_jet.pattern_position, rock.shape, top_line);
+                if repeat_hash.contains_key(&hash) && seen_repeats < 1 {
+                    let delta_height = chamber.height - repeat_hash.get(&hash).unwrap().0;
+                    let delta_rocks = total_rocks - repeat_hash.get(&hash).unwrap().1;
+                    let num_to_repeat = (GOAL - total_rocks) / delta_rocks;
+                    total_rocks += num_to_repeat * delta_rocks;
+                    top_from_repeats += num_to_repeat * delta_height;
+                    seen_repeats += 1;
+                } else {
+                    repeat_hash.insert(hash, (chamber.height, total_rocks));
+                }
+            }
+            total_rocks += 1;
+            if total_rocks > 1_000_000_000_000 {
+                break;
+            }
+            chamber.height += 3;
+            rock = rock.next().unwrap();
+            // Critical that the piece moves up before horizontal moves to avoid invalid collisions
+            rock.move_vertical(chamber.height as isize);
+            rock.move_horizontal(2, &mut chamber);
+        }
+    }
+    // Now that we have the repeat hash we can just restart the simulation near 1 trillion
+
+    Some(chamber.height + top_from_repeats)
 }
 
 fn main() {
@@ -319,6 +379,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let input = aoc::read_file("examples", 17);
-        assert_eq!(part_two(&input), None);
+        assert_eq!(part_two(&input), Some(1514285714288));
     }
 }
