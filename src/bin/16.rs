@@ -1,20 +1,17 @@
-use pathfinding::prelude::dfs;
-use petgraph::algo::{astar, floyd_warshall, NegativeCycle};
-use petgraph::prelude::{Bfs, DfsPostOrder, NodeIndex};
-use petgraph::visit::{depth_first_search, Dfs, IntoNodeReferences};
+use petgraph::algo::{floyd_warshall, NegativeCycle};
+use petgraph::prelude::NodeIndex;
 use petgraph::{Directed, Graph};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use std::collections::HashMap;
-use itertools::Itertools;
+use std::thread::current;
 
 type Pipeline = FxHashMap<usize, Valve>;
 
 #[derive(Debug, Eq, Hash, Clone, PartialEq)]
 struct Valve {
     id: usize,
-    fw_index: Option<NodeIndex>,
-    fm_index: Option<NodeIndex>,
+    node_index: Option<NodeIndex>,
     flow_rate: usize,
     neighbors: Vec<usize>,
     is_open: bool,
@@ -33,8 +30,7 @@ impl Valve {
         let cap = re.captures(input).unwrap();
         Self {
             id: valve_str_to_idx(&cap[1]),
-            fw_index: None,
-            fm_index: None,
+            node_index: None,
             flow_rate: cap[2].parse::<usize>().unwrap(),
             neighbors: cap[3]
                 .split(", ")
@@ -45,27 +41,75 @@ impl Valve {
     }
 }
 
+fn gml(pipeline: &Pipeline) {
+    println!("graph\n[");
+    for (k, _) in pipeline.iter() {
+        println!("node\n[\nid {}\n]\n", k)
+    }
+    for (k, v) in pipeline.iter() {
+        for e in &v.neighbors {
+            println!("edge\n[\nsource {}\ntarget {}\n]\n", k, e)
+        }
+    }
+    println!("]")
+}
+
 fn build_graph(input: &str) -> (Graph<usize, usize, Directed>, Pipeline) {
     let mut graph: Graph<usize, usize, Directed> = Graph::default();
     let mut valves = Pipeline::default();
 
     for line in input.lines() {
         let mut valve = Valve::new(line);
-        valve.fw_index = Some(graph.add_node(valve.flow_rate));
+        valve.node_index = Some(graph.add_node(valve.flow_rate));
         valves.insert(valve.id, valve);
     }
 
     for (_, valve) in &valves {
         for neighbor in &valve.neighbors {
             graph.add_edge(
-                valve.fw_index.unwrap(),
-                valves.get(&neighbor).unwrap().fw_index.unwrap(),
+                valve.node_index.unwrap(),
+                valves.get(&neighbor).unwrap().node_index.unwrap(),
                 1,
             );
         }
     }
 
     (graph, valves)
+}
+
+fn find_best_next(
+    current_valve_id: usize,
+    node_distances: &HashMap<(NodeIndex, NodeIndex), usize>,
+    pipeline: &Pipeline,
+) -> (Option<usize>, Option<usize>) {
+    let current_valve = pipeline.get(&current_valve_id).unwrap();
+    let mut best_flow_rate: usize = 0;
+    let mut best_next_valve_id: Option<usize> = None;
+    let mut best_node_distance: Option<usize> = None;
+    'outer: for step in 0..10_usize {
+        for (_, valve) in pipeline {
+            // We don't care about the current valve we are at or any already open valves
+            if current_valve.node_index.unwrap() == valve.node_index.unwrap() || valve.is_open {
+                continue;
+            }
+            if let Some(distance) =
+            node_distances.get(&(current_valve.node_index.unwrap(), valve.node_index.unwrap()))
+            {
+                let flow_rate = (step.saturating_sub(*distance) * valve.flow_rate);
+                // println!("{} Estimated Flow Rate {}, {}", step, decode_valve_id(valve.id), flow_rate);
+                if flow_rate > best_flow_rate {
+                    best_flow_rate = flow_rate;
+                    best_next_valve_id = Some(valve.id);
+                    best_node_distance = Some(*distance);
+                }
+                // This is finicky and greedy. Not great but it's quick
+                if flow_rate >= 35 {
+                    break 'outer;
+                }
+            }
+        }
+    }
+    (best_next_valve_id, best_node_distance)
 }
 
 fn decode_valve_id(valve_id: usize) -> String {
@@ -79,48 +123,69 @@ fn decode_valve_id(valve_id: usize) -> String {
         .to_string()
 }
 
+fn find_best_path(node_distances: &HashMap<(NodeIndex, NodeIndex), usize>, pipeline: &mut Pipeline) -> Vec<(usize, usize)> {
+    let mut current_valve_id = 65065_usize; // AA
+    let mut path: Vec<(usize, usize)> = Vec::new();
 
-fn walk_steam() {
-    if t > 30 {}
-
+    // Find the best path
+    for _ in 0..20 {
+        if let (Some(next_valve_id), Some(distance)) =
+        find_best_next(current_valve_id, &node_distances, pipeline)
+        {
+            let new_valve = pipeline.get_mut(&next_valve_id).unwrap();
+            current_valve_id = new_valve.id;
+            new_valve.is_open = true;
+            path.push((new_valve.id, distance));
+        }
+    }
+    path
 }
 
+/// Runs the steam release simulation for a given path and returns the total pressure released
+fn run_simulation(path: &Vec<(usize, usize)>, pipeline: &Pipeline, time_limit: usize) -> usize {
+    let mut pressure_per_tick: usize = 0;
+    let mut total_pressure_released: usize = 0;
 
+    // Run the simulation
+    let mut movement_penalty: usize = path.first().unwrap().1;
+    let mut new_flow_rate = 0;
+    let mut path_ptr: usize = 0;
 
-
-pub fn part_one(input: &str) -> Option<u32> {
-    const AA: usize = 65065;
-    let (fw_graph, mut pipeline) = build_graph(input);
-    let node_distances = floyd_warshall(&fw_graph, |edge| 1).unwrap();
-    // Prune valves that don't release any steam except for AA which we must keep.
-    pipeline.retain(|_, v| v.flow_rate > 0 || v.id == AA);
-    // Build a graph of all valves to all valves but use the floyd-warshall weights for edges.
-    let mut full_mesh = Graph::<&Valve, usize>::new();
-    let mut mesh_map = FxHashMap::default();
-    pipeline.iter().for_each(|(_, v)| {
-        mesh_map.insert(v.id, full_mesh.add_node(&v));
-    });
-    // Add edges to the full mesh
-    for combo in mesh_map.iter().permutations(2) {
-        let a = combo[0];
-        let b = combo[1];
-        let fw_a = pipeline.get(&a.0).unwrap().fw_index.unwrap();
-        let fw_b = pipeline.get(&b.0).unwrap().fw_index.unwrap();
-        let weight = node_distances.get(&(fw_a, fw_b)).unwrap();
-        full_mesh.add_edge(*a.1, *b.1, *weight + 1);
+    for _ in 0..time_limit {
+        total_pressure_released += pressure_per_tick;
+        if movement_penalty > 0 {
+            movement_penalty = movement_penalty.saturating_sub(1);
+        } else {
+            if let Some((valve_index, _)) = path.get(path_ptr) {
+                path_ptr += 1;
+                let valve = pipeline.get(&valve_index).unwrap();
+                new_flow_rate = valve.flow_rate;
+                if let Some((_, penalty)) = path.get(path_ptr) {
+                    movement_penalty = *penalty;
+                }
+                pressure_per_tick += new_flow_rate;
+            }
+        }
     }
-
-    let node_aa = mesh_map.get(&AA).unwrap();
-    let mut dfs = DfsPostOrder::new(&full_mesh, *node_aa);
-    while let Some(node) = dfs.next(&full_mesh) {
-        println!("node: {:?}", full_mesh.node_references()));
-    }
-
-    None
+    total_pressure_released
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    return None;
+/// Just myself with 30 minutes
+pub fn part_one(input: &str) -> Option<usize> {
+    let (graph, mut pipeline) = build_graph(input);
+    let node_distances = floyd_warshall(&graph, |edge| 1).unwrap();
+    let mut path: Vec<(usize, usize)> = find_best_path(&node_distances, &mut pipeline);
+    Some(run_simulation(&path, &pipeline, 30))
+}
+
+/// The elephant and I with 26 minutes to spare
+pub fn part_two(input: &str) -> Option<usize> {
+    let (graph, mut pipeline) = build_graph(input);
+    let node_distances = floyd_warshall(&graph, |edge| 1).unwrap();
+    let mut path: Vec<(usize, usize)> = find_best_path(&node_distances, &mut pipeline);
+
+    // First we find the "best" path, then we divide and conquer
+    Some(run_simulation(&path, &pipeline, 26))
 }
 
 fn main() {
