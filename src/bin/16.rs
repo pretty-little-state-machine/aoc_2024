@@ -2,10 +2,26 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use std::cmp::{max, min};
 
+/// Defines a valve with a few fields:
+///
+/// id:
+///   The string ID from the input file, ex: "AA", "BB", "II", etc....
+///
+/// flow_rate: usize
+///   The flow rate of the valve, which may be 0
+///
+/// mask: usize
+///   This value will be used later in the path finding to easily store visited state with boolean
+///   math. Ex: AA = 001, BB = 010, CC = 100, DD = 1000, etc... thus the state value of 6 (1010)
+///   would mean that valves `AA` and `DD` were visited.
+///
+/// neighbors: Vec<String>
+///   The vec of neighbor strings from the input file, ex: vec!["AA", "BB", "II"]
 #[derive(Debug, Eq, Hash, Clone, PartialEq)]
 struct Valve {
     id: String,
     flow_rate: usize,
+    mask: usize,
     neighbors: Vec<String>,
 }
 
@@ -17,6 +33,7 @@ impl Valve {
         Self {
             id: cap[1].to_string(),
             flow_rate: cap[2].parse::<usize>().unwrap(),
+            mask: 0,
             neighbors: cap[3]
                 .split(", ")
                 .map(|s| s.to_string())
@@ -31,42 +48,22 @@ impl Valve {
 ///   A fully-meshed graph of valves where the value represents the time to move between valves. It
 ///   has to include all valves since even valves with 0 flow rate contribute to movement distance.
 ///
-/// **flow_rates** FxHashMap<String, usize> - Filtered to Flow Rate > 0
-///   A HashMap with the key of the valve String and the flow-rate as the value.
-///
-/// **valve_mask** FxHashMap<String, usize> - Filtered to Flow Rate > 0
-///   This HashMap has the valve String as the key and the value is a unique integer that maps to a
-///   bit. This ID will be used later in the path finding to easily store visited state with boolean
-///   math. Ex: AA = 001, BB = 010, CC = 100, DD = 1000, etc... thus the state value of 6 (1010)
-///   would mean that valves `AA` and `DD` were visited. Only valves with a flow rate > 0 are part
-///   this HashMap.
+/// **valves** FxHashMap<String, Valve> - All the valves in a Hashmap using their String name
 ///
 fn build_structures(
     input: &str,
 ) -> (
     FxHashMap<String, FxHashMap<String, usize>>,
-    FxHashMap<String, usize>,
-    FxHashMap<String, usize>,
+    FxHashMap<String, Valve>,
 ) {
-    let mut flow_rates = FxHashMap::default();
-
     // Decode the valve input text into a Vec<Valve> for easier datastructure construction later
-    let valves: Vec<Valve> = input
-        .lines()
-        .map(|line| {
-            let valve = Valve::new(line);
-            if valve.flow_rate > 0 {
-                flow_rates.insert(valve.id.clone(), valve.flow_rate);
-            }
-            valve
-        })
-        .collect();
+    let mut valves: Vec<Valve> = input.lines().map(Valve::new).collect();
 
     // Bitstring Visited creation
-    let mut valve_mask = FxHashMap::default();
-    for (idx, (key, _)) in flow_rates.iter().enumerate() {
-        valve_mask.insert(key.clone(), 1 << idx);
-    }
+    valves
+        .iter_mut()
+        .enumerate()
+        .for_each(|(idx, valve)| valve.mask = 1 << idx);
 
     // Construct the Neighbors table using the IDs - Just used to build the Floyd Warshall table
     let mut neighbors: FxHashMap<String, Vec<String>> = FxHashMap::default();
@@ -106,7 +103,10 @@ fn build_structures(
             }
         }
     }
-    (valve_distances, flow_rates, valve_mask)
+    (
+        valve_distances,
+        FxHashMap::from_iter(valves.iter().map(|v| (v.id.clone(), v.clone()))),
+    )
 }
 
 /// This is a depth-first search across the Floyd Warshall graph. However only valves that have a
@@ -120,13 +120,12 @@ fn build_structures(
 /// any state needs to be updated each call against the previous max that state may have had.
 ///
 fn run<'a>(
-    flow_rates: &FxHashMap<String, usize>, // Valves with flow of 0 are not included
-    valve_masks: &FxHashMap<String, usize>, // Valves with flow 0 are not included
+    valves: &FxHashMap<String, Valve>, // All valves
     valve_distances: &FxHashMap<String, FxHashMap<String, usize>>, // All valves
-    valve: String,                         // The current valve to search from
-    time_left: usize,                      // Remaining time
-    state: usize,                          // A usize of masking bits for visited valves
-    flow: usize,                           // The current flow for the state
+    valve: String,                     // The current valve to search from
+    time_left: usize,                  // Remaining time
+    state: usize,                      // A usize of masking bits for visited valves
+    flow: usize,                       // The current flow for the state
     answer: &'a mut FxHashMap<usize, usize>, // The best flow total for every state scanned
 ) -> &'a mut FxHashMap<usize, usize> {
     // If the flow just found is better, update our state with the new best flow
@@ -136,8 +135,18 @@ fn run<'a>(
         let current_best = *answer.get(&state).unwrap();
         *answer.get_mut(&state).unwrap() = max(current_best, flow);
     }
-    // Iterate over all valves that could potentially add to the flow
-    for (next_valve, rate) in flow_rates.iter() {
+    // Iterate over all valves that could potentially  add to the flow
+    for (
+        next_valve,
+        Valve {
+            flow_rate, mask, ..
+        },
+    ) in valves.iter()
+    {
+        // Useless valves and opened valves are skipped
+        if mask & state != 0 || *flow_rate == 0 {
+            continue;
+        }
         // Move to the valve and open in, which takes an extra minute
         let new_time = time_left
             .saturating_sub(
@@ -151,17 +160,13 @@ fn run<'a>(
         if new_time == 0 {
             continue; // Base case - Out of time!
         }
-        if valve_masks.get(next_valve).unwrap() & state != 0 {
-            continue; // If the next valve has already been visited it is skipped
-        }
         run(
-            flow_rates,
-            valve_masks,
+            valves,
             valve_distances,
             next_valve.clone(),
             new_time,
-            state | valve_masks.get(next_valve).unwrap(),
-            flow + new_time * rate,
+            state | mask,
+            flow + new_time * *flow_rate,
             answer,
         );
     }
@@ -170,11 +175,10 @@ fn run<'a>(
 
 /// Just myself with 30 minutes
 pub fn part_one(input: &str) -> Option<usize> {
-    let (valve_distances, flow_rates, valve_masks) = build_structures(input);
+    let (valve_distances, valves) = build_structures(input);
     let mut answer = FxHashMap::default();
     run(
-        &flow_rates,
-        &valve_masks,
+        &valves,
         &valve_distances,
         "AA".to_string(),
         30,
@@ -188,11 +192,10 @@ pub fn part_one(input: &str) -> Option<usize> {
 /// The elephant and I with 26 minutes to spare
 pub fn part_two(input: &str) -> Option<usize> {
     // This is all the same as Part 1, run a nice DFS over every possible valve state
-    let (valve_distances, flow_rates, valve_masks) = build_structures(input);
+    let (valve_distances, valves) = build_structures(input);
     let mut answer = FxHashMap::default();
     run(
-        &flow_rates,
-        &valve_masks,
+        &valves,
         &valve_distances,
         "AA".to_string(),
         26, // Gotta train that elephant up!
