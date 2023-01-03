@@ -1,8 +1,8 @@
-use std::collections::{HashMap, HashSet};
 use crate::JetDirection::{Left, Right};
 use crate::Shape::{Bar, Line, Plus, ReverseL, Square};
 use itertools::{all, any};
-use rustc_hash::{FxHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::BuildHasherDefault;
 
@@ -50,7 +50,10 @@ impl Chamber {
     }
 
     fn jet_collision(&mut self, rock: &Rock, offset: isize) -> bool {
-        let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| Point { x: p.x + offset, y: p.y + 1 }));
+        let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| Point {
+            x: p.x + offset,
+            y: p.y + 1,
+        }));
         let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
         !intersection.is_empty()
     }
@@ -298,7 +301,11 @@ pub fn part_two(input: &str) -> Option<usize> {
     let mut gas_jet = GasJet::new(input);
 
     // Key: Hash of top line contents, jet position and piece type. Value of top line height & rocks
-    let mut repeat_hash: HashMap<(usize, Shape, usize), (usize, usize), BuildHasherDefault<FxHasher>> = FxHashMap::default();
+    let mut repeat_hash: HashMap<
+        (usize, Shape, usize),
+        (usize, usize),
+        BuildHasherDefault<FxHasher>,
+    > = FxHashMap::default();
     let mut seen_repeats = 0;
     chamber.height = 3;
     // Set the initial position of our first rock.
@@ -326,7 +333,10 @@ pub fn part_two(input: &str) -> Option<usize> {
                 // The top-most line is just a binary representation of the filled squares
                 let mut top_line: usize = 0;
                 for bit in 0..7 {
-                    if chamber.grid.contains(&Point { x: bit, y: chamber.height as isize }) {
+                    if chamber.grid.contains(&Point {
+                        x: bit,
+                        y: chamber.height as isize,
+                    }) {
                         top_line |= 1 << bit;
                     }
                 }
