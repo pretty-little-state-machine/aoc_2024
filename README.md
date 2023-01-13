@@ -6,8 +6,7 @@ Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.
 
 > **Note**
 > Puzzle inputs are not checked into
->
-git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3)
+> git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3)
 > .
 
 <!--- advent_readme_stars table --->
