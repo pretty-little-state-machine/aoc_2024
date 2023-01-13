@@ -144,20 +144,6 @@ fn score_elves(elves: &Elves) -> isize {
     (max.0 - min.0 + 1) * (max.1 - min.1 + 1) - elves.len() as isize
 }
 
-fn debug(elves: &Elves) {
-    let (min, max) = bounds(elves);
-    for y in min.1..=max.1 {
-        for x in min.0..=max.0 {
-            if elves.contains(&(x, y)) {
-                print!("#");
-            } else {
-                print!(".");
-            }
-        }
-        println!();
-    }
-}
-
 pub fn part_one(input: &str) -> Option<isize> {
     let mut elves = parse_input(input);
     let mut direction = North;
