@@ -17,14 +17,12 @@ fn read_input_p2_real(input: &str) -> (CubeMap, Vec<Action>) {
         Map::default(),
         Map::default(),
     ];
-    let mut row = 0;
-    for line in input.lines() {
-        if line == "" {
+    for (row, line) in input.lines().enumerate() {
+        if line.is_empty() {
             break;
         }
-        let mut col = 0;
         // Build up the six faces while normalizing the coordinate space
-        for char in line.chars() {
+        for (col, char) in line.chars().enumerate() {
             match char {
                 '.' | '#' => {
                     if row < 50 && col >= 100 {
@@ -43,9 +41,7 @@ fn read_input_p2_real(input: &str) -> (CubeMap, Vec<Action>) {
                 }
                 _ => (),
             }
-            col += 1;
         }
-        row += 1;
     }
     (cube_map, build_actions(input))
 }

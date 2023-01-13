@@ -3,7 +3,6 @@ use crate::Shape::{Bar, Line, Plus, ReverseL, Square};
 use itertools::{all};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use std::collections::{HashMap};
-use std::fmt;
 use std::hash::BuildHasherDefault;
 
 #[derive(Copy, Clone, Debug, PartialEq, Ord, PartialOrd, Eq, Hash)]
@@ -35,7 +34,7 @@ impl Chamber {
     /// Returns true if the collision occurs and adds the rock to the field if insert is true.
     /// Note that this function will move the piece up on the y-axis offset to avoid the overlap.
     fn collision(&mut self, rock: &Rock, insert: bool) -> bool {
-        let rock_set = FxHashSet::from_iter(rock.points.iter().map(|p| *p));
+        let rock_set = FxHashSet::from_iter(rock.points.iter().copied());
         let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
         if intersection.is_empty() {
             false
@@ -56,24 +55,6 @@ impl Chamber {
         }));
         let intersection: Vec<_> = rock_set.intersection(&self.grid).collect();
         !intersection.is_empty()
-    }
-}
-
-impl fmt::Debug for Chamber {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for y in (1..=self.height).rev() {
-            write!(f, "{y}|").unwrap();
-            for x in 0..7 {
-                if self.grid.contains(&Point { x, y: y as isize }) {
-                    write!(f, "#").unwrap();
-                } else {
-                    write!(f, ".").unwrap();
-                }
-            }
-            write!(f, "|\n").unwrap();
-        }
-        write!(f, "0+-------+\n").unwrap();
-        Ok(())
     }
 }
 
@@ -197,16 +178,6 @@ impl Rock {
         }
     }
 
-    fn get_height(&self) -> isize {
-        match self.shape {
-            Bar => 1,
-            Plus => 2,
-            ReverseL => 3,
-            Line => 4,
-            Square => 2,
-        }
-    }
-
     fn update_shape(&mut self) {
         match self.shape {
             Bar => self.shape = Plus,
@@ -231,9 +202,9 @@ impl Rock {
                 .iter()
                 .map(|p| p.x + amount >= 0 && p.x + amount < 7)
                 .collect::<Vec<bool>>(),
-            |b| b == true,
+            |b| b,
         ) {
-            if !chamber.jet_collision(&self, amount) {
+            if !chamber.jet_collision(self, amount) {
                 // println!("Shifting by {amount}");
                 self.points.iter_mut().for_each(|p| p.x += amount);
             } else {
@@ -378,7 +349,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::iter::Rev;
 
     #[test]
     fn test_part_one() {

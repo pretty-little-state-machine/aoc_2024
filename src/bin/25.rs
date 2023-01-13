@@ -39,7 +39,7 @@ pub fn part_one(input: &str) -> Option<String> {
     Some(encode_snafu(sum))
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
+pub fn part_two(_: &str) -> Option<u32> {
     None
 }
 

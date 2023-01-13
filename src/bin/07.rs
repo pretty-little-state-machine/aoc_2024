@@ -79,7 +79,7 @@ pub fn part_one(input: &str) -> Option<u32> {
     let filesystem = build_filesystem(input);
     let answer: usize = filesystem
         .keys()
-        .map(|key| sum_path(key, &filesystem) as usize)
+        .map(|key| sum_path(key, &filesystem))
         .filter(|size| size <= &(100_000_usize))
         .sum();
     Some(answer as u32)
@@ -93,8 +93,8 @@ pub fn part_two(input: &str) -> Option<u32> {
 
     let answer = filesystem
         .keys()
-        .map(|key| sum_path(key, &filesystem) as usize)
-        .filter(|size| size >= &(amount_to_free as usize))
+        .map(|key| sum_path(key, &filesystem))
+        .filter(|size| size >= { &amount_to_free })
         .min()
         .unwrap();
     Some(answer as u32)

@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use image::{ImageBuffer, Rgb};
 use rand::Rng;
 
@@ -80,7 +82,6 @@ impl Chamber {
     fn drop_sand(&mut self) -> bool {
         let mut x = SAND_START.1;
         for y in SAND_START.0..CHAMBER_HEIGHT - 1 {
-            //println!("{} {}", x, y);
             if self.grid[cell_idx(x, y)] != 0 {
                 return false;
             }
@@ -108,8 +109,8 @@ impl Chamber {
         let start_x: u32 = 400;
         let end_x: u32 = (CHAMBER_WIDTH) as u32;
 
-        let width = ((end_x - start_x) * scale) as u32;
-        let height = (CHAMBER_HEIGHT as u32 * scale) as u32;
+        let width = (end_x - start_x) * scale;
+        let height = CHAMBER_HEIGHT as u32 * scale;
 
         let mut imgbuf = ImageBuffer::new(width - 300, height);
         // Iterate over the coordinates and pixels of the image
@@ -123,7 +124,7 @@ impl Chamber {
                 _ => unreachable!("Undefined block type"),
             }
         }
-        let file_name = format!("src/viz/{:0>4}.png", step);
+        let file_name = format!("src/viz/{step:0>4}.png");
         imgbuf.save(file_name).expect("Coulnd't build output image");
     }
 

@@ -66,11 +66,11 @@ fn resolve_monkey_shouts(monkeys: &mut Monkeys) -> FxHashMap<String, String> {
             let b = monkeys.get(&*m.left).unwrap().clone();
             parents.insert(
                 (*m.right).parse().unwrap(),
-                (**&(*key).clone()).parse().unwrap(),
+                ((*key).clone()).parse().unwrap(),
             );
             parents.insert(
                 (*m.left).parse().unwrap(),
-                (**&(*key).clone()).parse().unwrap(),
+                ((*key).clone()).parse().unwrap(),
             );
             let m = monkeys.get_mut(*key).unwrap();
 

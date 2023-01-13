@@ -6,6 +6,7 @@ use rustc_hash::FxHashMap;
 use std::cmp::max;
 use std::collections::VecDeque;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, PartialEq)]
 enum Bots {
     ClayBot,
@@ -166,7 +167,6 @@ fn max_geodes(state: State, blueprint: &Blueprint, time_limit: usize) -> usize {
     let mut max_geodes = 0;
     let mut queue = VecDeque::new();
     queue.push_back(state);
-    let mut max_branches: usize = 0;
     // DFS Search across all the solution space for this blueprint
     while let Some(State {
                        inventory,
@@ -174,7 +174,6 @@ fn max_geodes(state: State, blueprint: &Blueprint, time_limit: usize) -> usize {
                        elapsed_time,
                    }) = queue.pop_front()
     {
-        max_branches += 1;
         // Explore building every bot type as a new branch
         for bot_type in BOT_TYPES.iter() {
             // Prune 1 - Don't overbuild bots, only build up to the max cost of any resource
@@ -264,7 +263,6 @@ pub fn part_one(input: &str) -> Option<usize> {
         .par_iter()
         .map(|b| {
             let state = State::default();
-            // println!("{} : {}", b.id, max_geodes(state, &b));
             b.id * max_geodes(state, b, 24)
         })
         .sum();
@@ -277,7 +275,6 @@ pub fn part_two(input: &str) -> Option<usize> {
         .par_iter()
         .map(|b| {
             let state = State::default();
-            // println!("{} : {}", b.id, max_geodes(state, &b));
             max_geodes(state, b, 32)
         })
         .reduce(|| 1, |x, acc| x * acc);

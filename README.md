@@ -5,46 +5,54 @@
 Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.rust-lang.org/).
 
 > **Note**
-> Puzzle inputs are not checked into git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3).
+> Puzzle inputs are not checked into
+>
+git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3)
+> .
 
 <!--- advent_readme_stars table --->
+
 ## 2022 Results
 
-| Day | Part 1 | Part 2 |
-| :---: | :---: | :---: |
-| [Day 1](https://adventofcode.com/2022/day/1) | ⭐ | ⭐ |
-| [Day 2](https://adventofcode.com/2022/day/2) | ⭐ | ⭐ |
-| [Day 3](https://adventofcode.com/2022/day/3) | ⭐ | ⭐ |
-| [Day 4](https://adventofcode.com/2022/day/4) | ⭐ | ⭐ |
-| [Day 5](https://adventofcode.com/2022/day/5) | ⭐ | ⭐ |
-| [Day 6](https://adventofcode.com/2022/day/6) | ⭐ | ⭐ |
-| [Day 7](https://adventofcode.com/2022/day/7) | ⭐ | ⭐ |
-| [Day 8](https://adventofcode.com/2022/day/8) | ⭐ | ⭐ |
-| [Day 9](https://adventofcode.com/2022/day/9) | ⭐ | ⭐ |
-| [Day 10](https://adventofcode.com/2022/day/10) | ⭐ | ⭐ |
-| [Day 11](https://adventofcode.com/2022/day/11) | ⭐ | ⭐ |
-| [Day 12](https://adventofcode.com/2022/day/12) | ⭐ | ⭐ |
-| [Day 13](https://adventofcode.com/2022/day/13) | ⭐ | ⭐ |
-| [Day 14](https://adventofcode.com/2022/day/14) | ⭐ | ⭐ |
-| [Day 15](https://adventofcode.com/2022/day/15) | ⭐ | ⭐ |
-| [Day 16](https://adventofcode.com/2022/day/16) | ⭐ | ⭐ |
-| [Day 17](https://adventofcode.com/2022/day/17) | ⭐ | ⭐ |
-| [Day 18](https://adventofcode.com/2022/day/18) | ⭐ | ⭐ |
-| [Day 19](https://adventofcode.com/2022/day/19) | ⭐ | ⭐ |
-| [Day 20](https://adventofcode.com/2022/day/20) | ⭐ | ⭐ |
-| [Day 21](https://adventofcode.com/2022/day/21) | ⭐ | ⭐ |
-| [Day 22](https://adventofcode.com/2022/day/22) | ⭐ | ⭐ |
-| [Day 23](https://adventofcode.com/2022/day/23) | ⭐ | ⭐ |
-| [Day 24](https://adventofcode.com/2022/day/24) | ⭐ | ⭐ |
-| [Day 25](https://adventofcode.com/2022/day/25) | ⭐ | ⭐ |
-<!--- advent_readme_stars table --->
+I had a secondary goal of clearing all puzzles in under 1 second. I haven't quite gotten there yet, but I'm close!
+The profile doesn't include loading the file from storage but does include parsing for fairness.
+
+**Total Runtime: 1721.28ms**
+
+|  Day   |   Part 1   |   Part 2   |
+|:------:|:----------:|:----------:|
+| Day 01 |  32.20µs   |  27.90µs   |
+| Day 02 |   3.10µs   |   2.70µs   |
+| Day 03 |  686.70µs  |  240.90µs  |
+| Day 04 |  212.90µs  |  207.60µs  |
+| Day 05 |  191.00µs  |  193.20µs  |
+| Day 06 |  512.90µs  |  415.30µs  |
+| Day 07 |  657.70µs  |  338.70µs  |
+| Day 08 |   1.62ms   |   4.12ms   |
+| Day 09 |  800.00ns  |  400.00ns  |
+| Day 10 |   7.10µs   |   8.10µs   |
+| Day 11 |  96.30µs   |  19.81ms   |
+| Day 12 |   1.06ms   |  22.41ms   |
+| Day 13 | not solved | not solved |
+| Day 14 |   1.01ms   |   5.21ms   |
+| Day 15 |  973.10µs  |  196.56ms  |
+| Day 16 |  112.74ms  |  56.94ms   |
+| Day 17 |  41.06ms   |  96.99ms   |
+| Day 18 |  557.50µs  |   3.38ms   |
+| Day 19 |  17.41ms   |  439.45ms  |
+| Day 20 |  23.61ms   |  293.92ms  |
+| Day 21 |   4.78ms   |   4.77ms   |
+| Day 22 |   2.70ms   |   1.97ms   |
+| Day 23 |   3.36ms   |  214.83ms  |
+| Day 24 |  34.42ms   |  84.94ms   |
+| Day 25 |  49.50µs   |            |
 
 ---
 
 # Goals & What I've Learned
- 
-This year I wanted to expand my Rust experiences with data-structures, complicated cases with string parsing, and how 
-memory is managed in Rust. Although I've written a Gameboy emulator it was a relatively simple project when it came to 
+
+This year I wanted to expand my Rust experiences with data-structures, complicated cases with string parsing, and how
+memory is managed in Rust. Although I've written a Gameboy emulator it was a relatively simple project when it came to
 appeasing the borrow-checker; this left me with a huge hole in my knowledge.
 
 Here are "lessons learned" for each day's problems.
@@ -54,9 +62,9 @@ Here are "lessons learned" for each day's problems.
 
 ## Day 1
 
-My original solution involved sorting the calorie listing then taking the max value. There's a faster way to obtain 
+My original solution involved sorting the calorie listing then taking the max value. There's a faster way to obtain
 a max value using the `k_largest` algorithm which uses a binary heap to keep the maximum value at the root of the heap.
-Here's a stack overflow discussion of this: 
+Here's a stack overflow discussion of this:
 
 [What is the advantage of heaps over sorted arrays?](https://cs.stackexchange.com/questions/63931/what-is-the-advantage-of-heaps-over-sorted-arrays])
 
@@ -64,13 +72,14 @@ Rust's Itertools crate will provide this soon, for now I am using a PR branch to
 
 ## Day 2
 
-Strings are slow when we have guaranteed ASCII char input! The original solution used lots of `&str` references for 
-matching the Rock / Paper / Scissor puzzle inputs. I converted these over to `&[u8; 1]` and got a nice boost. You can 
+Strings are slow when we have guaranteed ASCII char input! The original solution used lots of `&str` references for
+matching the Rock / Paper / Scissor puzzle inputs. I converted these over to `&[u8; 1]` and got a nice boost. You can
 see the code differences in this commit:
 
 (Optimization - &str to chars commits)[https://github.com/itwasscience/aoc_2022/commits/main/src/bin/02.rs]
 
 **Comparison of runtimes**
+
 ```
 ----------
 | Day 02 |
@@ -95,8 +104,8 @@ loop. I rewrote this later to use the `filter()` and `count()` methods, which re
 
 ## Day 5
 
-This day had a real tricky issue in the helper function I wrote to build the `Vec<VecDeque<char>>` up from the puzzle 
-input. Observe the following code snippet which is trying to iterate over some input line-by-line and update a Vector 
+This day had a real tricky issue in the helper function I wrote to build the `Vec<VecDeque<char>>` up from the puzzle
+input. Observe the following code snippet which is trying to iterate over some input line-by-line and update a Vector
 with some function using that line's contents:
 
 ```rust
@@ -133,7 +142,8 @@ In Rust iterators are evaluated in a lazy fashion. This means that `map` will on
 either by calling `next` explicitly or via something like `collect()`. Just an assignment will not cause the iterator to
 be evaluated; instead the type of the _ would have been of the type `Map<Lines<fn(&str)>>`.
 
-What does the compiler say? 
+What does the compiler say?
+
 ```
    = note: `#[warn(unused_must_use)]` on by default
    = note: iterators are lazy and do nothing unless consumed
@@ -147,7 +157,7 @@ force an evaluation of the Iterator and avoid requiring collection entirely (and
 
 ## Day 6
 
-Day 6 gave me the opportunity to check out some neat windowing functions in the Itertools crate. There really wasn't 
+Day 6 gave me the opportunity to check out some neat windowing functions in the Itertools crate. There really wasn't
 else to this day.
 
 ## Day 7
@@ -168,7 +178,7 @@ struct Directory<'a> {
     children: Vec<&'a mut Directory<'a>>
 }
 
-impl <'a> Directory<'a> {
+impl<'a> Directory<'a> {
     fn sum(self) -> usize {
         let mut sum = self.file_sizes;
         for child in self.children {
@@ -179,10 +189,10 @@ impl <'a> Directory<'a> {
 }
 
 fn main() {
-    let mut child_a = Directory{file_sizes: 1, children: Vec::new()};
-    let mut child_ab = Directory{file_sizes: 2, children:  Vec::new()};
-    let mut child_ac = Directory{file_sizes: 3, children: Vec::new()};
-    let mut root = Directory{file_sizes: 10,  children: Vec::new()};
+    let mut child_a = Directory { file_sizes: 1, children: Vec::new() };
+    let mut child_ab = Directory { file_sizes: 2, children: Vec::new() };
+    let mut child_ac = Directory { file_sizes: 3, children: Vec::new() };
+    let mut root = Directory { file_sizes: 10, children: Vec::new() };
 
     root.children.push(&mut child_a);
     child_a.children.push(&mut child_ab);
@@ -195,31 +205,31 @@ But does this work? During the problem it became clear I would need to traverse 
 take sums of nested directories. This `sum` function quickly explodes:
 
 ```rust
-error[E0507]: cannot move out of `*child` which is behind a mutable reference
---> src/main.rs:11:20
+error[E0507]: cannot move out of ` * child` which is behind a mutable reference
+- -> src/main.rs:11: 20
 |
-11 |             sum += child.sum();
-|                    ^^^^^^-----
-|                    |     |
-|                    |     `*child` moved due to this method call
-|                    move occurs because `*child` has type `Directory<'_>`, which does not implement the `Copy` trait
+11 | sum += child.sum();
+| ^ ^ ^ ^ ^ ^ -- - - -
+| | |
+| | ` * child` moved due to this method call
+| move occurs because ` * child` has type `Directory<'_ > `, which does not implement the `Copy` trait
 |
-note: this function takes ownership of the receiver `self`, which moves `*child`
---> src/main.rs:8:12
+note: this function takes ownership of the receiver ` self `, which moves ` * child`
+- -> src/main.rs:8: 12
 |
-8  |     fn sum(self) -> usize {
-    |            ^^^^
+8 | fn sum(self) -> usize {
+    | ^ ^ ^ ^
 ```
 
-What can we do here? 
+What can we do here?
 
-The answer is to use something called an _arena_ to map our paths. I choose to use a HashMap since 
+The answer is to use something called an _arena_ to map our paths. I choose to use a HashMap since
 I had a known key I could use (the directory path) although `Vec` or other structures may work.
 
 ### Theory Behind Arenas
 
-An arena is a structure that holds a reference to a particular node in the tree. Nodes will use a reference to the 
-location of other nodes in the arena structure, such as a key or an offset, instead of a direct reference to another 
+An arena is a structure that holds a reference to a particular node in the tree. Nodes will use a reference to the
+location of other nodes in the arena structure, such as a key or an offset, instead of a direct reference to another
 node.
 
 Here is a tiny excerpt from my day 7 solution demonstrating the arena model:
@@ -249,10 +259,10 @@ pub fn sum_path(path: &String, filesystem: &DirectoryTree) -> usize {
 pub fn main() {
     let mut arena = DirectoryTree::default();
 
-    let mut root = Directory{file_sizes: 10,  children: Vec::new()};
-    let mut child_a = Directory{file_sizes: 1, children: Vec::new()};
-    let child_ab = Directory{file_sizes: 2, children:  Vec::new()};
-    let child_ac = Directory{file_sizes: 3, children: Vec::new()};
+    let mut root = Directory { file_sizes: 10, children: Vec::new() };
+    let mut child_a = Directory { file_sizes: 1, children: Vec::new() };
+    let child_ab = Directory { file_sizes: 2, children: Vec::new() };
+    let child_ac = Directory { file_sizes: 3, children: Vec::new() };
 
     // Children are arena keys, NOT references to the children themselves.
     root.children.push("a".to_string());
@@ -273,14 +283,15 @@ This works great! Notice that the summing function doesn't require any mutable r
 
 > **Optimization?**    
 > There might be some room for improvement here if `sum_path()` is being called on very large, very deep trees since the
-> recursive calculation has to be done each time `sum_path()` is called. Another `Hashmap` could be used to provide a 
-> cache based on the search string for long-running programs. I didn't observe an improvement in Day 07. Always 
+> recursive calculation has to be done each time `sum_path()` is called. Another `Hashmap` could be used to provide a
+> cache based on the search string for long-running programs. I didn't observe an improvement in Day 07. Always
 > benchmark "optimizations" and remove them if they don't actually deliver benefit for the increased complexity!
 
 
 ---
 
-✨ You can start solving puzzles now! Head to the [Usage section](#usage) to see how to use this template. If you like, you can configure [some optional features](#optional-template-features).
+✨ You can start solving puzzles now! Head to the [Usage section](#usage) to see how to use this template. If you like,
+you can configure [some optional features](#optional-template-features).
 
 ## Usage
 
@@ -307,7 +318,9 @@ cargo download <day>
 
 To download inputs for previous years, append the `--year/-y` flag. _(example: `cargo download 1 --year 2020`)_
 
-Puzzle inputs are not checked into git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3).
+Puzzle inputs are not checked into
+git. [Reasoning](https://old.reddit.com/r/adventofcode/comments/k99rod/sharing_input_data_were_we_requested_not_to/gf2ukkf/?context=3)
+.
 
 ### Run solutions for a day
 
@@ -378,6 +391,8 @@ cargo clippy
 ### Download puzzle inputs via aoc-cli
 
 1. Install [`aoc-cli`](https://github.com/scarvalhojr/aoc-cli/) via cargo: `cargo install aoc-cli`.
-2. Create an `.adventofcode.session` file in your home directory and paste your session cookie[^1] into it. To get this, press F12 anywhere on the Advent of Code website to open your browser developer tools. Look in your Cookies under the Application or Storage tab, and copy out the `session` cookie value.
+2. Create an `.adventofcode.session` file in your home directory and paste your session cookie[^1] into it. To get this,
+   press F12 anywhere on the Advent of Code website to open your browser developer tools. Look in your Cookies under the
+   Application or Storage tab, and copy out the `session` cookie value.
 
 Once installed, you can use the [download command](#download-input-for-a-day).
