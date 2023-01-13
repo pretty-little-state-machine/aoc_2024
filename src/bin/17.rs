@@ -1,8 +1,8 @@
 use crate::JetDirection::{Left, Right};
 use crate::Shape::{Bar, Line, Plus, ReverseL, Square};
-use itertools::{all, any};
+use itertools::{all};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::fmt;
 use std::hash::BuildHasherDefault;
 
