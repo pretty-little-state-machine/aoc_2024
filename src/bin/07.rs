@@ -107,15 +107,12 @@ fn all_jobs_done(arena: &StepArena) -> bool {
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    // const NUM_WORKERS:usize = 2;
     const NUM_WORKERS: usize = 5;
-    let mut order: Vec<char> = Vec::new();
     let mut arena = build_step_arena(input);
-    let arena_keys = arena.keys().map(|k| k.clone()).collect::<Vec<char>>();
+    let arena_keys = arena.keys().copied().collect::<Vec<char>>();
     hydrate_requirements(input, &mut arena);
 
     let start = find_starting_point(&arena);
-    order.push(start);
     arena.get_mut(&start).unwrap().status = InProgress;
     let mut elapsed: usize = 0;
     let mut jobs_in_progress: usize = 1;
@@ -123,7 +120,7 @@ pub fn part_two(input: &str) -> Option<usize> {
     loop {
         // First we tick progress jobs
         for key in &arena_keys {
-            let step = &mut arena.get_mut(&key).unwrap();
+            let step = &mut arena.get_mut(key).unwrap();
             if step.status == InProgress {
                 step.time = step.time.saturating_sub(1);
                 if step.time == 0 {
@@ -135,14 +132,13 @@ pub fn part_two(input: &str) -> Option<usize> {
         // Now we allocate work in case a higher letter caused a lower one to be available
         for key in &arena_keys {
             let working_arena = arena.clone();
-            let step = &mut arena.get_mut(&key).unwrap();
-            if step.status == Pending {
-                if jobs_in_progress < NUM_WORKERS {
-                    if step.can_be_done(&working_arena) {
-                        jobs_in_progress += 1;
-                        step.status = InProgress;
-                    }
-                }
+            let step = &mut arena.get_mut(key).unwrap();
+            if step.status == Pending
+                && jobs_in_progress < NUM_WORKERS
+                && step.can_be_done(&working_arena)
+            {
+                jobs_in_progress += 1;
+                step.status = InProgress;
             }
         }
         if all_jobs_done(&arena) {
