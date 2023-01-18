@@ -31,6 +31,7 @@ storage but does include parsing for fairness.
 | Day 09 | 655.20µs | 58.44ms  |
 | Day 10 | 103.96ms | 85.98ms  |
 | Day 11 | 10.83ms  | 219.71ms |
+| Day 12 | 258.60µs |  1.61ms  |
 
 ---
 
