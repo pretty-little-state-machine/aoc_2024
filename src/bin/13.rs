@@ -1,3 +1,5 @@
+use std::cmp;
+use std::cmp::Ordering;
 use crate::Action::{Straight, TurnLeft, TurnRight};
 use crate::Direction::{East, North, South, West};
 use crate::Track::{CornerNESW, CornerNWSE, Horizontal, Intersection, Vertical};
@@ -82,10 +84,12 @@ fn parse_input(input: &str) -> (Tracks, Trains) {
     (tracks, trains)
 }
 
+/// A Point.
+/// WARNING: The Y Coordinate is first so we can use the built in CMP to order by y then x
 #[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
 struct Point {
-    x: usize,
     y: usize,
+    x: usize,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -122,9 +126,50 @@ enum Track {
 }
 
 impl Train {
-    fn tick(&mut self, position: &Point, tracks: &Tracks) -> Point {
+    fn tick(&mut self, tracks: &Tracks) -> Point {
         self.may_move = false;
-        let current_track = tracks.get(position).expect("Track isn't contiguous!");
+        let current_track = tracks.get(&self.position).expect("Track isn't contiguous!");
+        // Trains entering an intersection adjust their facing direction
+        if Intersection == *tracks.get(&self.position).unwrap() {
+            self.facing = match (&self.next_action, &self.facing) {
+                (TurnLeft, North) => {
+                    self.next_action = Straight;
+                    West
+                }
+                (TurnLeft, West) => {
+                    self.next_action = Straight;
+                    South
+                }
+                (TurnLeft, South) => {
+                    self.next_action = Straight;
+                    East
+                }
+                (TurnLeft, East) => {
+                    self.next_action = Straight;
+                    North
+                }
+                (TurnRight, North) => {
+                    self.next_action = TurnLeft;
+                    East
+                }
+                (TurnRight, East) => {
+                    self.next_action = TurnLeft;
+                    South
+                }
+                (TurnRight, South) => {
+                    self.next_action = TurnLeft;
+                    West
+                }
+                (TurnRight, West) => {
+                    self.next_action = TurnLeft;
+                    North
+                }
+                (Straight, _) => {
+                    self.next_action = TurnRight;
+                    self.facing
+                }
+            }
+        }
         match (current_track, &self.facing) {
             (Horizontal, East) | (Intersection, East) => self.position.x += 1,
             (Horizontal, West) | (Intersection, West) => self.position.x -= 1,
@@ -169,120 +214,62 @@ impl Train {
                 current_track, &self.facing
             ),
         };
-        // Trains entering an intersection adjust their facing direction
-        if Intersection == *tracks.get(&self.position).unwrap() {
-            self.facing = match (&self.next_action, &self.facing) {
-                (TurnLeft, North) => {
-                    self.next_action = Straight;
-                    West
-                }
-                (TurnLeft, West) => {
-                    self.next_action = Straight;
-                    South
-                }
-                (TurnLeft, South) => {
-                    self.next_action = Straight;
-                    East
-                }
-                (TurnLeft, East) => {
-                    self.next_action = Straight;
-                    North
-                }
-                (TurnRight, North) => {
-                    self.next_action = TurnLeft;
-                    East
-                }
-                (TurnRight, East) => {
-                    self.next_action = TurnLeft;
-                    South
-                }
-                (TurnRight, South) => {
-                    self.next_action = TurnLeft;
-                    West
-                }
-                (TurnRight, West) => {
-                    self.next_action = TurnLeft;
-                    North
-                }
-                (Straight, _) => {
-                    self.next_action = TurnRight;
-                    self.facing
-                }
-            }
+
         }
         self.position
     }
 }
 
-fn get_bounds(tracks: &Tracks) -> (usize, usize) {
-    (
-        tracks.keys().max_by_key(|k| k.x).unwrap().x,
-        tracks.keys().max_by_key(|k| k.y).unwrap().y,
-    )
-}
-
 /// Trains are simulated per row per the problem statement.
-fn tick(
-    trains: &mut Trains,
-    tracks: &Tracks,
-    bounds: (usize, usize),
-    remove_trains: bool,
-) -> Option<Point> {
-    let mut new_positions: FxHashMap<Point, Vec<isize>> = FxHashMap::default();
-    for y in 0..=bounds.1 {
-        for x in 0..=bounds.0 {
-            for train in &mut *trains {
-                if (Point { x, y }) == train.position && train.may_move && !train.crashed {
-                    let new_pos = train.tick(&Point { x, y }, tracks);
-                    if new_positions.contains_key(&new_pos) {
-                        if new_positions.get(&new_pos).unwrap().len() < 2 {
-                            new_positions.get_mut(&new_pos).unwrap().push(train.id)
-                        }
-                    } else {
-                        new_positions.insert(new_pos, vec![train.id]);
-                    }
-                }
-            }
-        }
-    }
-    // Allow next tick for all trains
-    trains.iter_mut().for_each(|t| t.may_move = true);
+fn tick(trains: &mut Trains, tracks: &Tracks, remove_trains: bool) -> Option<Point> {
+    trains.sort_unstable_by_key(|t| (t.position.x, t.position.y));
 
-    // Collision detection will only remove up to two trains
-    for (point, possible_trains) in new_positions {
-        if possible_trains.len() > 1 {
-            if remove_trains {
-                for train in trains.iter_mut() {
-                    if possible_trains.contains(&train.id) {
-                        println!("crashed train: {:?} @ {:?}", train.id, point);
+    let mut seen_pos: Vec<Point> = Vec::new();
+    for train in &mut *trains {
+        seen_pos.push(train.tick(tracks))
+    }
+
+    let mut overlaps = seen_pos.iter().counts();
+    overlaps.retain(|_, c| *c >= 2);
+    for overlap in overlaps.keys() {
+        if !remove_trains {
+            return Some(**overlap);
+        } else {
+            // Only allow up to two trains per position to be crashed
+            let mut crashed_trains: usize = 0;
+            while crashed_trains < 2 {
+                for train in &mut *trains {
+                    if train.position == **overlap {
                         train.crashed = true;
-                    }
-                }
-                println!();
-                let mut retained = trains.clone();
-                retained.retain(|t| !t.crashed);
-
-                println!("{} trains remain", retained.len());
-                if retained.len() == 1 {
-                    return Some(retained[0].position);
-                }
-            } else {
-                for train in trains.iter_mut() {
-                    if train.id == possible_trains[0] {
-                        return Some(train.position);
+                        println!("Crashed Train: {} @ {:?}", train.id, train.position);
+                        crashed_trains += 1;
                     }
                 }
             }
+
+            for train in &mut *trains {
+                println!("{},{}", train.position.x, train.position.y);
+            }
+            println!();
         }
     }
+    trains.retain(|t| !t.crashed);
+    if trains.len() == 1 {
+        return Some(trains[0].position);
+    }
+    trains.iter_mut().for_each(|t| t.may_move = true);
+    // println!();
+   // for train in &mut *trains {
+     //  println!("{}, {}", train.position.x, train.position.y);
+    // }
     None
 }
 
 pub fn part_one(input: &str) -> Option<String> {
+    return None;
     let (tracks, mut trains) = parse_input(input);
-    let bounds = get_bounds(&tracks);
     loop {
-        match tick(&mut trains, &tracks, bounds, false) {
+        match tick(&mut trains, &tracks, false) {
             None => {}
             Some(point) => return Some(format!("{},{}", point.x, point.y)),
         }
@@ -291,13 +278,13 @@ pub fn part_one(input: &str) -> Option<String> {
 
 pub fn part_two(input: &str) -> Option<String> {
     let (tracks, mut trains) = parse_input(input);
-    let bounds = get_bounds(&tracks);
     loop {
-        match tick(&mut trains, &tracks, bounds, true) {
+        match tick(&mut trains, &tracks, true) {
             None => {}
             Some(point) => return Some(format!("{},{}", point.x, point.y)),
         }
     }
+    None
 }
 
 fn main() {
