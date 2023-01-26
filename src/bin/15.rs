@@ -1,9 +1,13 @@
 use crate::UnitKind::{Elf, Goblin, Wall};
-use pathfinding::prelude::{yen};
+use itertools::Itertools;
+use pathfinding::prelude::bfs;
 use std::collections::BTreeMap;
+#[allow(unused_imports)] // Visualization uses sleep
+use std::thread::sleep;
+#[allow(unused_imports)] // Visualization uses sleep
+use std::time;
 
 type Cavern = BTreeMap<Point, Unit>;
-
 
 /// Point attributes are set so we  can sort on them in _reading order_, left to right, top down.
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Debug)]
@@ -31,6 +35,7 @@ struct Unit {
     kind: UnitKind,
     hp: usize,
     pos: Point,
+    attack: usize,
 }
 
 impl Unit {
@@ -44,25 +49,27 @@ impl Unit {
 }
 
 #[inline(always)]
-fn add_cavern_unit(kind: UnitKind, point: Point, cavern: &mut Cavern) {
+fn add_cavern_unit(kind: UnitKind, point: Point, cavern: &mut Cavern, elf_attack: usize) {
+    let attack = if Elf == kind { elf_attack } else { 3 };
     cavern.insert(
         point,
         Unit {
             kind,
             hp: 200,
             pos: point,
+            attack,
         },
     );
 }
 
-fn new_cavern(input: &str) -> Cavern {
+fn new_cavern(input: &str, elf_attack: usize) -> Cavern {
     let mut cavern = BTreeMap::default();
     for (y, line) in input.lines().enumerate() {
         for (x, char) in line.chars().enumerate() {
             match char {
-                'E' => add_cavern_unit(Elf, Point { x, y }, &mut cavern),
-                'G' => add_cavern_unit(Goblin, Point { x, y }, &mut cavern),
-                '#' => add_cavern_unit(Wall, Point { x, y }, &mut cavern),
+                'E' => add_cavern_unit(Elf, Point { x, y }, &mut cavern, elf_attack),
+                'G' => add_cavern_unit(Goblin, Point { x, y }, &mut cavern, elf_attack),
+                '#' => add_cavern_unit(Wall, Point { x, y }, &mut cavern, elf_attack),
                 '.' => (),
                 _ => unreachable!("Unknown unit"),
             };
@@ -78,7 +85,7 @@ fn attempt_attack(unit: &Unit, cavern: &mut Cavern) -> bool {
     let mut choices: Vec<(usize, Point)> = Vec::new();
     let enemy_kind = unit.get_enemy_kind();
     // Order here is critical - we want to scan in "reading order", left to right, top down.
-    #[cfg_attr(rustfmt, rustfmt_skip)]
+    #[rustfmt::skip]
     let test_points = [
         Point { x: unit.pos.x, y: unit.pos.y - 1 },  // North
         Point { x: unit.pos.x - 1,  y: unit.pos.y }, // West
@@ -97,21 +104,12 @@ fn attempt_attack(unit: &Unit, cavern: &mut Cavern) -> bool {
     if let Some((_hp, point)) = choices.first() {
         // Apply the damage
         let target = cavern.get_mut(point).unwrap();
-        target.hp = target.hp.saturating_sub(3);
-        print!(
-            "{:?} ({}, {}) attacks {:?} ({},{}) for 3 damage! {} HP left.\n",
-            unit.kind, unit.pos.x, unit.pos.y, target.kind, target.pos.x, target.pos.y, target.hp
-        );
+        target.hp = target.hp.saturating_sub(unit.attack);
         if target.hp == 0 {
-            print!("{:?} at {}, {} has died!", target.kind, target.pos.x, target.pos.y);
             cavern.remove(point);
         }
         true
-    }  else {
-        print!(
-            "{:?} ({}, {}) has nothing to attack!\n",
-            unit.kind, unit.pos.x, unit.pos.y
-        );
+    } else {
         false
     }
 }
@@ -158,9 +156,9 @@ fn get_unit_kind_neighbors(cavern: &Cavern, kind: UnitKind) -> Vec<Point> {
 fn finished_combat(cavern: &Cavern) -> Option<UnitKind> {
     let elves = get_unit_kind_points(cavern, Elf);
     let goblins = get_unit_kind_points(cavern, Goblin);
-    if elves.len() == 0 {
+    if elves.is_empty() {
         Some(Goblin)
-    } else if goblins.len() == 0 {
+    } else if goblins.is_empty() {
         Some(Elf)
     } else {
         None
@@ -175,21 +173,21 @@ fn score_game(cavern: &Cavern, kind: UnitKind, rounds: usize) -> usize {
     for point in points {
         total_hp += cavern.get(&point).unwrap().hp;
     }
-    println!("Total hit points: {}, rounds: {}", total_hp, rounds);
     total_hp * rounds
 }
 
 /// Obtains empty squares around a point. Useful for pathfinding and target detection. All moves
 /// have a cost of 1.
 #[inline(always)]
-fn cavern_successors(cavern: &Cavern, p: &Point) -> Vec<(Point, usize)> {
+fn cavern_successors(cavern: &Cavern, p: &Point) -> Vec<Point> {
     let mut points: Vec<Point> = Vec::new();
     // The successor list must be in _reading order_
     add_empty_point(Point { x: p.x, y: p.y - 1 }, &mut points, cavern);
     add_empty_point(Point { x: p.x - 1, y: p.y }, &mut points, cavern);
-    add_empty_point(Point { x: p.x, y: p.y + 1 }, &mut points, cavern);
     add_empty_point(Point { x: p.x + 1, y: p.y }, &mut points, cavern);
-    points.into_iter().map(|p| (p, 1)).collect()
+    add_empty_point(Point { x: p.x, y: p.y + 1 }, &mut points, cavern);
+    // points.into_iter().map(|p| (p, 1)).collect()
+    points
 }
 
 /// Returns the best movement for a unit. It finds the closest enemy unit with available attack
@@ -197,125 +195,131 @@ fn cavern_successors(cavern: &Cavern, p: &Point) -> Vec<(Point, usize)> {
 /// If no valid position is valid then None is returned.
 #[inline(always)]
 fn find_best_movement(cavern: &Cavern, unit: &Unit) -> Option<Point> {
-    let mut all_path_options: Vec<(Point, (Vec<Point>, usize))> = Vec::new();
-    for goal in get_unit_kind_neighbors(&cavern, unit.get_enemy_kind()) {
-        let paths = yen(
-            &unit.pos,
-            |p| cavern_successors(&cavern, p),
-            |p| *p == goal,
-            4,
-        );
-        paths
-            .iter()
-            .for_each(|p| all_path_options.push((goal, p.clone())));
+    // If an enemy is in range (distance of 1) then no movement is required
+    if get_unit_kind_points(cavern, unit.get_enemy_kind())
+        .iter()
+        .map(|point| point.distance(&unit.pos))
+        .contains(&1)
+    {
+        return None;
     }
-    // Sort by Distance, then Goal (reading order) if there is a tie.
-    all_path_options.sort_by_key(|option| (option.1.1, option.0));
 
-    if let Some((_goal, (path, _cost))) = all_path_options.first() {
-        Some(*path.get(1).unwrap())
-    } else {
+    //  Distance to Goal, Goal Point, Path to Goal
+    let mut all_path_options: Vec<(usize, Point, Vec<Point>)> = Vec::new();
+    for goal in get_unit_kind_neighbors(cavern, unit.get_enemy_kind()) {
+        if let Some(path) = bfs(&unit.pos, |p| cavern_successors(cavern, p), |p| *p == goal) {
+            all_path_options.push((path.len(), goal, path));
+        }
+    }
+
+    // Sort by Distance, then Goal (reading order), then first step!
+    all_path_options.sort_by_key(|option| (option.0, option.1));
+    if all_path_options.is_empty() {
         None
+    } else {
+        all_path_options.first().unwrap().2.get(1).copied()
     }
 }
 
+#[allow(dead_code)] // For visualizations
 #[inline(always)]
 fn debug(cavern: &Cavern) {
     for y in 0..=cavern.keys().max_by_key(|p| p.y).unwrap().y {
         // Display Battlefield
         for x in 0..=cavern.keys().max_by_key(|p| p.x).unwrap().x {
-            if let Some(unit) = cavern.get(&Point{x, y}) {
-                /*print!("{}", match unit.kind {
-                    Elf => '🧝',
-                    Goblin => '👹',
-                    Wall => '🪨'
-                });
-                 */
-                print!("{}", match unit.kind {
-                    Elf => 'E',
-                    Goblin => 'G',
-                    Wall => '#'
-                });
+            if let Some(unit) = cavern.get(&Point { x, y }) {
+                match unit.kind {
+                    Elf => print!("\x1b[92mE\x1b[0m"),
+                    Goblin => print!("\x1b[91mG\x1b[0m"),
+                    Wall => print!("\x1b[90m█\x1b[0m"),
+                }
             } else {
-                // print!("{}", '⬛');
-                print!("{}", ' ');
+                print!(" ");
             }
         }
         print!("   ");
         // Display Unit Health
         for x in 0..cavern.keys().max_by_key(|p| p.x).unwrap().x {
-            if let Some(unit) = cavern.get(&Point{x, y}) {
+            if let Some(unit) = cavern.get(&Point { x, y }) {
                 if unit.kind == Wall {
                     continue;
                 }
                 match unit.kind {
                     Elf => print!("E({}) ", unit.hp),
-                    Goblin =>  print!("G({}) ", unit.hp),
-                    Wall => {},
+                    Goblin => print!("G({}) ", unit.hp),
+                    Wall => {}
                 }
             }
         }
-        print!("\n");
+        println!();
     }
-    print!("\n");
+    println!();
 }
 
-
-pub fn part_one(input: &str) -> Option<usize> {
-    let mut cavern: Cavern = new_cavern(input);
-    debug(&cavern);
+/// Simulates the battle. Returns the victor and the score
+fn run_battle(cavern: &mut Cavern, break_on_elf_death: bool) -> (UnitKind, usize) {
     let mut rounds = 0;
+    let num_elves = get_unit_kind_points(cavern, Elf).len();
     loop {
-        if rounds == 500 {
-            println!("Breaking...");
-            break;
+        // Part II states that any Elf death is immediately a goblin victory
+        if break_on_elf_death && num_elves != get_unit_kind_points(cavern, Elf).len() {
+            return (Goblin, 0);
         }
-        print!("====ROUND {rounds}=====\n");
-        let mut unit_points = cavern.keys().map(|p| *p).collect::<Vec<Point>>();
+        let mut unit_points = cavern.keys().copied().collect::<Vec<Point>>();
         unit_points.sort();
-        for point in unit_points {
-            if let Some(unit) =  cavern.get(&point) {
-                let unit = unit.clone();
+        let mut new_points = Vec::new();
+        for point in &unit_points {
+            if let Some(unit) = cavern.get(point) {
+                let unit = *unit;
                 if unit.kind == Wall {
                     continue;
                 }
-                print!("TURN: {:?}\n", unit);
-                // First we try to attack
-                if let Some(victor) = finished_combat(&cavern) {
-                    return Some(score_game(&cavern, victor, rounds));
-                }
-                if attempt_attack(&unit, &mut cavern) {
-                    print!("\n");
+                // If a unit moves into a previous unit's place don't double-execute the behavior
+                if new_points.contains(point) {
                     continue;
                 }
-                // Then movement happens if there was no attack. There might not be a best move.
-                if let Some(new_point) = find_best_movement(&cavern, &unit) {
-                    let mut removed_unit = cavern.remove(&point).unwrap();
-                    removed_unit.pos = new_point;
-                    cavern.insert(new_point, removed_unit);
-                    print!(
-                        "{:?} moved from {},{} to {},{}\n",
-                        unit.kind, unit.pos.x, unit.pos.y, removed_unit.pos.x, removed_unit.pos.y
-                    );
-                    // Moved units are allowed to attempt another attack
-                    attempt_attack(&removed_unit, &mut cavern);
-                    if let Some(victor) = finished_combat(&cavern) {
-                        return Some(score_game(&cavern, victor, rounds));
-                    }
+                if let Some(victor) = finished_combat(cavern) {
+                    return (victor, score_game(cavern, victor, rounds));
                 }
-                print!("\n");
+                if let Some(new_point) = find_best_movement(cavern, &unit) {
+                    let mut saved_unit = cavern.remove(point).unwrap();
+                    saved_unit.pos = new_point;
+                    new_points.push(new_point);
+                    cavern.insert(new_point, saved_unit);
+                    attempt_attack(&saved_unit, cavern);
+                } else {
+                    attempt_attack(&unit, cavern);
+                }
             }
         }
 
-        debug(&cavern);
+        // sleep(time::Duration::from_millis(125));
+        // debug(cavern);
+        // print!("{esc}[2J{esc}[1;1H", esc = 27 as char);
+
         rounds += 1;
-        print!("\n");
+        if let Some(victor) = finished_combat(cavern) {
+            return (victor, score_game(cavern, victor, rounds));
+        }
     }
-    None
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    None
+pub fn part_one(input: &str) -> Option<usize> {
+    let mut cavern: Cavern = new_cavern(input, 3);
+    let (_, score) = run_battle(&mut cavern, false);
+    Some(score)
+}
+
+pub fn part_two(input: &str) -> Option<usize> {
+    let mut attack = 3;
+    loop {
+        let mut cavern: Cavern = new_cavern(input, attack);
+        let (victor, score) = run_battle(&mut cavern, true);
+        if Elf == victor {
+            return Some(score);
+        }
+        attack += 1;
+    }
 }
 
 fn main() {
@@ -327,7 +331,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::UnitKind::{Elf, Goblin, Wall};
+    use crate::UnitKind::{Elf, Goblin};
 
     #[test]
     /// Tests the attack priorities for a mob. In this simulation the elf is attacking three
@@ -338,7 +342,7 @@ mod tests {
 #..G#.#
 #.G.#G#
 #######";
-        let mut cavern = new_cavern(input);
+        let mut cavern = new_cavern(input, 3);
         let elf = cavern.get(&Point { x: 3, y: 1 }).unwrap().clone();
 
         const GOBLIN_LEFT: Point = Point { x: 2, y: 1 };
@@ -376,7 +380,7 @@ mod tests {
 #...#.#
 #.G.#G#
 #######";
-        let mut cavern = new_cavern(input);
+        let mut cavern = new_cavern(input, 3);
         assert_eq!(
             get_unit_kind_neighbors(&cavern, Elf),
             vec![Point { y: 1, x: 2 }, Point { y: 2, x: 1 }]
@@ -398,8 +402,10 @@ mod tests {
     }
 
     #[test]
+    /// See https://www.reddit.com/r/adventofcode/comments/a6f100/day_15_details_easy_to_be_wrong_on/
+    /// for some more test cases.
     fn test_part_one() {
-        #[cfg_attr(rustfmt, rustfmt_skip)]
+        #[rustfmt::skip]
         let trials = [(
 "#######
 #.G...#
@@ -444,7 +450,18 @@ mod tests {
 #...#...#
 #.G...G.#
 #.....G.#
-#########", 18740)];
+#########", 18740), (
+"####
+##E#
+#GG#
+####", 13400), (
+"#####
+#GG##
+#.###
+#..E#
+#.#G#
+#.E##
+#####", 13987)];
         // let input = aoc::read_file("examples", 15);
         for (input, score) in trials {
             assert_eq!(part_one(&input), Some(score));
