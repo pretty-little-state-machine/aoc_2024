@@ -12,6 +12,10 @@ itertools = { version = "0.10.5", git = "https://www.github.com/ejmount/itertool
 rayon = "1.6.0"
 rustc-hash = "1.1.0"
 regex = "1.7.0"
+# For Day 15 at least
+pathfinding = "4.2.1"
+# Logging
+log = { version = "0.4.17", features = ["max_level_debug", "release_max_level_warn"] }
 
 [profile.test]
 opt-level = 3
