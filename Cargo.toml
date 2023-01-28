@@ -14,6 +14,9 @@ rustc-hash = "1.1.0"
 regex = "1.7.0"
 # For Day 15 at least
 pathfinding = "4.2.1"
+# For primitive types to enum casts
+enum-primitive-derive = "^0.1"
+num-traits = "^0.1"
 # Logging
 log = { version = "0.4.17", features = ["max_level_debug", "release_max_level_warn"] }
 
