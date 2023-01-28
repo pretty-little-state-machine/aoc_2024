@@ -11,24 +11,25 @@ struct Device {
     reg: [usize; 4],
 }
 
+/// Uncomment the `determine_opcodes` function part 2 to re-derive these values.
 #[derive(Debug, Hash, Eq, Copy, Clone, Primitive, PartialEq)]
 enum Opcode {
-    Addr = 0,
-    Addi = 1,
-    Mulr = 2,
-    Muli = 3,
-    Banr = 4,
-    Bani = 5,
-    Borr = 6,
-    Bori = 7,
-    Setr = 8,
-    Seti = 9,
-    Gtir = 10,
-    Gtri = 11,
-    Gtrr = 12,
-    Eqir = 13,
-    Eqri = 14,
-    Eqrr = 15,
+    Addr = 1,
+    Addi = 13,
+    Mulr = 15,
+    Muli = 14,
+    Banr = 0,
+    Bani = 9,
+    Borr = 8,
+    Bori = 5,
+    Setr = 3,
+    Seti = 7,
+    Gtir = 6,
+    Gtri = 12,
+    Gtrr = 4,
+    Eqir = 10,
+    Eqri = 2,
+    Eqrr = 11,
 }
 
 impl Device {
@@ -85,7 +86,7 @@ fn parse_cmd(input: &str) -> [usize; 4] {
 
 fn parse_samples(input: &str) -> Vec<Sample> {
     let parts: Vec<&str> = input.split("\n\n\n").collect();
-    let lines: Vec<&str> = parts[0].split("\n").collect();
+    let lines: Vec<&str> = parts[0].split('\n').collect();
     let mut samples = Vec::new();
     for line in lines.chunks(4) {
         samples.push(Sample {
@@ -121,14 +122,15 @@ pub fn part_one(input: &str) -> Option<usize> {
     Some(matches.iter().filter(|&m| *m >= 3).count())
 }
 
+#[allow(dead_code)]
+/// Executes the samples over and over gradually to discover which opcodes are which integers
 fn determine_opcodes(samples: &Vec<Sample>) {
     let mut device = Device::default();
     let mut remaining_opcodes: Vec<Opcode> = Vec::with_capacity(16);
     for x in 0_usize..16 {
         remaining_opcodes.push(Opcode::from_usize(x).unwrap());
     }
-    while remaining_opcodes.len() > 0 {
-        println!("Remaining opcodes: {}", remaining_opcodes.len());
+    while !remaining_opcodes.is_empty() {
         for sample in samples {
             let mut candidates = FxHashSet::default();
             for opcode in remaining_opcodes.clone() {
@@ -141,17 +143,32 @@ fn determine_opcodes(samples: &Vec<Sample>) {
             }
             if candidates.len() == 1 {
                 let (x, opcode) = *candidates.iter().collect::<Vec<_>>().first().unwrap();
-                println!("Opcode {:?} == {}", opcode, x);
-                remaining_opcodes.retain(|&o| o != opcode.clone());
+                println!("Opcode {opcode:?} == {x}");
+                remaining_opcodes.retain(|&o| o != *opcode);
             }
         }
     }
 }
 
-pub fn part_two(input: &str) -> Option<u32> {
-    let samples = parse_samples(input);
-    determine_opcodes(&samples);
-    None
+fn parse_program(input: &str) -> Vec<[usize; 4]> {
+    let mut program = Vec::with_capacity(1_000);
+    let parts: Vec<&str> = input.split("\n\n\n").collect();
+    for line in parts[1].split('\n').collect::<Vec<&str>>() {
+        if !line.is_empty() {
+            program.push(parse_cmd(line));
+        }
+    }
+    program
+}
+
+pub fn part_two(input: &str) -> Option<usize> {
+    // Uncomment to derive the opcode enum usize values
+    // let samples = parse_samples(input);
+    // determine_opcodes(&samples);
+    let program = parse_program(input);
+    let mut device = Device::default();
+    program.iter().for_each(|&cmd| device.execute(cmd));
+    Some(device.reg[0])
 }
 
 fn main() {
