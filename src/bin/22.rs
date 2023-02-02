@@ -1,9 +1,8 @@
+#![feature(stmt_expr_attributes)]
 use crate::Equipment::{ClimbingGear, Neither, Torch};
 use crate::Terrain::{Narrow, Rocky, Wet};
 use num_traits::cast::FromPrimitive;
-use std::cmp::min;
-use std::collections::VecDeque;
-use rustc_hash::FxHashSet;
+use pathfinding::prelude::dijkstra;
 
 #[macro_use]
 extern crate enum_primitive_derive;
@@ -37,15 +36,16 @@ struct Survey {
 impl Survey {
     fn new(depth: usize, target: &Point) -> Self {
         // The puzzle states our path may exceed the bounding box of the target.
-        const BEYOND_TARGET:usize = 20;
+        const BEYOND_TARGET: usize = 100;
         let mut geologic_index: Vec<Vec<usize>> = Vec::with_capacity(target.y);
-        for _ in 0..=target.y + BEYOND_TARGET + 1{
+        for _ in 0..=target.y + BEYOND_TARGET + 1 {
             geologic_index.push(vec![0; target.x + BEYOND_TARGET + 1]);
         }
         for y in 0..=target.y + BEYOND_TARGET {
             for x in 0..=target.x + BEYOND_TARGET {
                 let value = match (x, y) {
                     (0, 0) => 0,
+                    (x, y) if target.x == x && target.y ==y => 0,
                     (x, 0) => ((x * 16_807) + depth) % 20_183,
                     (0, y) => ((y * 48_271) + depth) % 20_183,
                     (x, y) => {
@@ -73,45 +73,110 @@ impl Survey {
         risk_level
     }
 
-    fn debug(&self) {
-        for y in 0..=self.target.y {
-            for x in 0..=self.target.x {
-                let terrain: Terrain =
-                    Terrain::from_geologic_index(self.geologic_index[y][x]);
-                match terrain {
-                    Rocky => print!("."),
-                    Wet => print!("="),
-                    Narrow => print!("|"),
+    #[allow(dead_code)]
+    fn debug(&self, paths: &Vec<State>) {
+        for y in 0..self.geologic_index.len() - 1 {
+            for x in 0..self.geologic_index[0].len() {
+                if let Some(state) = paths.iter().filter(|state| state.position == Point{x, y}).map(|s| *s).collect::<Vec<State>>().first() {
+                    match state.equipped {
+                        Neither => print!("\x1b[1;38;5;8;107mN\x1b[0m"),
+                        Torch => print!("\x1b[1;38;5;202;107mT\x1b[0m"),
+                        ClimbingGear => print!("\x1b[1;38;5;21;107mC\x1b[0m")
+                    }
+                } else {
+                    let terrain: Terrain = Terrain::from_geologic_index(self.geologic_index[y][x]);
+                    match terrain {
+                        Rocky => print!("\x1b[1;38;5;223;40m#\x1b[0m"),
+                        Wet => print!("\x1b[1;38;5;117;40m~\x1b[0m"),
+                        Narrow => print!("\x1b[1;38;5;244;40m=\x1b[0m"),
+                    }
                 }
             }
             println!()
         }
     }
+}
 
-    fn get_successors(&self, point: &Point) -> Vec<(Point, Equipment)> {
-        let mut successors: Vec<(Point, Equipment)> = Vec::new();
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+enum Equipment {
+    #[default]
+    Neither,
+    Torch,
+    ClimbingGear,
+}
+
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, Hash)]
+struct State {
+    position: Point,
+    equipped: Equipment,
+}
+
+impl State {
+    fn successors(&self, survey: &Survey) -> Vec<(State, usize)> {
+        let mut successors: Vec<(State, usize)> = Vec::new();
+        let current_terrain = Terrain::from_geologic_index(survey.geologic_index[self.position.y][self.position.x]);
+        // Tool swaps
+        match (&current_terrain, self.equipped) {
+            (Rocky, ClimbingGear) => {
+                successors.push((State{ position: self.position, equipped: Torch}, 7));
+            }
+            (Rocky, Torch) => {
+                successors.push((State{ position: self.position, equipped: ClimbingGear}, 7));
+            }
+            (Wet, ClimbingGear) => {
+                successors.push((State{ position: self.position, equipped: Neither}, 7));
+            }
+            (Wet, Neither) => {
+                successors.push((State{ position: self.position, equipped: ClimbingGear}, 7));
+            }
+            (Narrow, Torch) => {
+                successors.push((State{ position: self.position, equipped: Neither}, 7));
+            }
+            (Narrow, Neither) => {
+                successors.push((State{ position: self.position, equipped: Torch}, 7));
+            }
+            _ => unreachable!("Invalid combination: {:?}, {:?}", current_terrain, self.equipped),
+        }
+        // Moving to new cells
         for n in [(0, -1), (1, 0), (0, 1), (-1, 0)] {
-            let x = point.x as isize + n.0;
-            let y = point.y as isize + n.1;
+            let x = self.position.x as isize + n.0;
+            let y = self.position.y as isize + n.1;
             if y >= 0 && x >= 0 {
                 let x = x as usize;
                 let y = y as usize;
-                if let Some(row) = self.geologic_index.get(y) {
+                if let Some(row) = survey.geologic_index.get(y) {
                     if let Some(cell) = row.get(x) {
-                        let terrain = Terrain::from_geologic_index(*cell);
-                        match terrain {
-                            Rocky => {
-                                successors.push((Point { x, y }, ClimbingGear));
-                                successors.push((Point { x, y }, Torch));
+                        let new_terrain = Terrain::from_geologic_index(*cell);
+                        #[rustfmt::skip]
+                        // We can't move into the zone as we switch tools, so the tool must be valid
+                        // in both the current terrain _AND_ the new terrain.
+                        //
+                        // TODO: There's a better way to do this with sets and intersections to
+                        // scale to many more options, but we know this problem won't be adding more
+                        // types so I've left them broken out for clarity's sake.
+                        match (self.equipped, &new_terrain) {
+                            // Climbing gear may be used in Rocky or Wet, but not narrow
+                            (ClimbingGear, Rocky) => {
+                                successors.push((State{ position: Point {x, y}, equipped: ClimbingGear}, 1));
+                            },
+                            (ClimbingGear, Wet) => {
+                                successors.push((State{ position: Point {x, y}, equipped: ClimbingGear}, 1));
+                            },
+                            // Torches may be used in Rocky or Narrow, but not Wet
+                            (Torch, Rocky) => {
+                                successors.push((State{ position: Point {x, y}, equipped: Torch}, 1));
                             }
-                            Wet => {
-                                successors.push((Point { x, y }, ClimbingGear));
-                                successors.push((Point { x, y }, Neither));
+                            (Torch, Narrow) => {
+                                successors.push((State{ position: Point {x, y}, equipped: Torch}, 1));
                             }
-                            Narrow => {
-                                successors.push((Point { x, y }, Torch));
-                                successors.push((Point { x, y }, Neither));
+                            // Neither may be used in Wet or Narrow, but not Rocky
+                            (Neither, Wet) => {
+                                successors.push((State{ position: Point {x, y}, equipped: Neither}, 1));
                             }
+                            (Neither, Narrow) => {
+                                successors.push((State{ position: Point {x, y}, equipped: Neither}, 1));
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -121,80 +186,35 @@ impl Survey {
     }
 }
 
-#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
-enum Equipment {
-    #[default]
-    Neither,
-    Torch,
-    ClimbingGear,
-}
-
-#[derive(Default, Debug)]
-struct State {
-    position: Point,
-    equipped: Equipment,
-    elapsed: usize,
-    visited: FxHashSet<Point>,
-}
-
-/// Finds the quickest traversal and returns the number of elapsed minutes.
-fn find_quickest_path(state: State, target: &Point, survey: &Survey) -> usize {
-    let mut fastest_time = usize::MAX;
-    let mut queue = VecDeque::new();
-    queue.push_back(state);
-    while let Some(current) = queue.pop_front() {
-        if current.position == *target {
-            continue;
-        }
-        let successors = survey.get_successors(&current.position);
-        for (position, equipped) in successors {
-            if current.visited.contains(&position) {
-                continue;
-            }
-            let elapsed = if current.equipped == equipped {
-                1 + current.elapsed
-            } else {
-                8 + current.elapsed
-            };
-            let mut visited = current.visited.clone();
-            visited.insert(position);
-            let new_state = State {
-                position,
-                equipped,
-                elapsed,
-                visited,
-            };
-            if position.x > 9 && position.y > 9 {
-                println!("{new_state:?}");
-            }
-            queue.push_back(new_state);
-            if queue.len() > 10_000_000 {
-                return 0;
-            }
-        }
-        fastest_time = min(fastest_time, usize::MAX - current.elapsed);
-    }
-    usize::MAX - fastest_time
-}
-
 pub fn part_one(input: &str) -> Option<usize> {
     let survey = Survey::new(9171, &Point { x: 7, y: 721 });
     Some(survey.risk_level())
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    // let target = Point{x: 7, y: 721};
-    // let survey = Survey::new(9171, &target);
-    let target = Point{x: 10, y: 10};
-    let survey = Survey::new(510, &target);
-    // There are two possible starting states, one with a torch and one with climbing gear
-    let torch_state = State{
-        position: Point{x:0 , y: 0},
+    let target = Point{x: 7, y: 721};
+    let survey = Survey::new(9171, &target);
+    // let target = Point { x: 10, y: 10 };
+    // let survey = Survey::new(510, &target);
+    let torch_state = State {
+        position: Point { x: 0, y: 0 },
         equipped: Torch,
-        elapsed: 0,
-        visited: FxHashSet::default(),
     };
-    Some(find_quickest_path(torch_state, &target, &survey))
+    if let Some((path, cost)) = dijkstra(
+        &torch_state,
+        |s| s.successors(&survey),
+        |s| s.position == target,
+    ) {
+        //survey.debug(&path);
+        if path.last().unwrap().equipped != Torch {
+            println!("Added torch!");
+            Some(cost + 7)
+        } else {
+            Some(cost)
+        }
+    } else {
+        None
+    }
     // let successors = survey.get_successors(&Point{x:10, y:10});
     // println!("{successors:?}");
     // None
