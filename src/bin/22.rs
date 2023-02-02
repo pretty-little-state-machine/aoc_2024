@@ -45,17 +45,14 @@ impl Survey {
             for x in 0..=target.x + BEYOND_TARGET {
                 let value = match (x, y) {
                     (0, 0) => 0,
-                    (x, y) if target.x == x && target.y ==y => 0,
-                    (x, 0) => ((x * 16_807) + depth) % 20_183,
-                    (0, y) => ((y * 48_271) + depth) % 20_183,
-                    (x, y) => {
-                        ((geologic_index[y][x - 1] * geologic_index[y - 1][x]) + depth) % 20_183
-                    }
+                    (x, y) if target.x == x && target.y == y => 0,
+                    (x, 0) => (x * 16_807) + depth,
+                    (0, y) => (y * 48_271) + depth,
+                    (x, y) => (geologic_index[y][x - 1] * geologic_index[y - 1][x]) + depth,
                 };
-                geologic_index[y][x] = value;
+                geologic_index[y][x] = value % 20_183;
             }
         }
-        geologic_index[target.y][target.x] = 0; // Special case due to puzzle instructions
         Self {
             target: *target,
             geologic_index,
@@ -74,14 +71,20 @@ impl Survey {
     }
 
     #[allow(dead_code)]
-    fn debug(&self, paths: &Vec<State>) {
+    fn debug(&self, paths: &[State]) {
         for y in 0..self.geologic_index.len() - 1 {
             for x in 0..self.geologic_index[0].len() {
-                if let Some(state) = paths.iter().filter(|state| state.position == Point{x, y}).map(|s| *s).collect::<Vec<State>>().first() {
+                if let Some(state) = paths
+                    .iter()
+                    .filter(|state| state.position == Point { x, y })
+                    .copied()
+                    .collect::<Vec<State>>()
+                    .first()
+                {
                     match state.equipped {
                         Neither => print!("\x1b[1;38;5;8;107mN\x1b[0m"),
                         Torch => print!("\x1b[1;38;5;202;107mT\x1b[0m"),
-                        ClimbingGear => print!("\x1b[1;38;5;21;107mC\x1b[0m")
+                        ClimbingGear => print!("\x1b[1;38;5;21;107mC\x1b[0m"),
                     }
                 } else {
                     let terrain: Terrain = Terrain::from_geologic_index(self.geologic_index[y][x]);
@@ -114,8 +117,10 @@ struct State {
 impl State {
     fn successors(&self, survey: &Survey) -> Vec<(State, usize)> {
         let mut successors: Vec<(State, usize)> = Vec::new();
-        let current_terrain = Terrain::from_geologic_index(survey.geologic_index[self.position.y][self.position.x]);
+        let current_terrain =
+            Terrain::from_geologic_index(survey.geologic_index[self.position.y][self.position.x]);
         // Tool swaps
+        #[rustfmt::skip]
         match (&current_terrain, self.equipped) {
             (Rocky, ClimbingGear) => {
                 successors.push((State{ position: self.position, equipped: Torch}, 7));
@@ -186,38 +191,47 @@ impl State {
     }
 }
 
+/// Returns the Depth and Target from the puzzle input
+fn read_input(input: &str) -> (usize, Point) {
+    let lines = input.lines().collect::<Vec<&str>>();
+    let depth = lines.first().unwrap().split(": ").collect::<Vec<&str>>()[1]
+        .parse::<usize>()
+        .unwrap();
+    let coords = lines.get(1).unwrap().split(": ").collect::<Vec<&str>>()[1]
+        .split(',')
+        .collect::<Vec<&str>>();
+    (
+        depth,
+        Point {
+            x: coords[0].parse::<usize>().unwrap(),
+            y: coords[1].parse::<usize>().unwrap(),
+        },
+    )
+}
+
 pub fn part_one(input: &str) -> Option<usize> {
-    let survey = Survey::new(9171, &Point { x: 7, y: 721 });
+    let (depth, target) = read_input(input);
+    let survey = Survey::new(depth, &target);
     Some(survey.risk_level())
 }
 
 pub fn part_two(input: &str) -> Option<usize> {
-    let target = Point{x: 7, y: 721};
-    let survey = Survey::new(9171, &target);
-    // let target = Point { x: 10, y: 10 };
-    // let survey = Survey::new(510, &target);
+    let (depth, target) = read_input(input);
+    let survey = Survey::new(depth, &target);
     let torch_state = State {
         position: Point { x: 0, y: 0 },
         equipped: Torch,
     };
-    if let Some((path, cost)) = dijkstra(
-        &torch_state,
-        |s| s.successors(&survey),
-        |s| s.position == target,
-    ) {
-        //survey.debug(&path);
-        if path.last().unwrap().equipped != Torch {
-            println!("Added torch!");
-            Some(cost + 7)
-        } else {
-            Some(cost)
-        }
+    let goal = State {
+        position: target,
+        equipped: Torch,
+    };
+    if let Some((_path, cost)) = dijkstra(&torch_state, |s| s.successors(&survey), |s| *s == goal) {
+        // survey.debug(&path);
+        Some(cost)
     } else {
         None
     }
-    // let successors = survey.get_successors(&Point{x:10, y:10});
-    // println!("{successors:?}");
-    // None
 }
 
 fn main() {
