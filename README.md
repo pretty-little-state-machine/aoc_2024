@@ -42,7 +42,7 @@ storage but does include parsing for fairness.
 | Day 20 |    -     |    -     |
 | Day 21 |    -     |    -     |
 | Day 22 | 754.20µs | 52.49ms  |
-| Day 23 |    -     |    -     |
+| Day 23 |  1.96ms  |  1.33ms  |
 | Day 24 |    -     |    -     |
 | Day 25 |    -     |    -     |
 

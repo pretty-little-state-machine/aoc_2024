@@ -49,6 +49,8 @@ fn parse_input(input: &str) -> Vec<Nanobot> {
 }
 
 /// Collapse the 3D Space into a 1D space to the origin using Manhattan distance
+/// See: https://www.reddit.com/r/adventofcode/comments/a8s17l/2018_day_23_solutions/ecdqzdg/
+/// for details on how this solution works.
 fn solve_with_1d_collapse(nanobots: &[Nanobot]) -> usize {
     let mut tree: BTreeMap<isize, isize> = BTreeMap::new();
     for bot in nanobots {
