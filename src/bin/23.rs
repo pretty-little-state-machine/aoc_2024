@@ -59,7 +59,7 @@ fn solve_with_1d_collapse(nanobots: &[Nanobot]) -> usize {
     collapse_overlapping_ranges(&mut tree) as usize
 }
 
-/// Collapses a set of overlapping ranges into the length of overlaps where
+/// Collapses a set of overlapping ranges into the length of overlap
 fn collapse_overlapping_ranges(tree: &mut BTreeMap<isize, isize>) -> isize {
     let mut count = 0;
     let mut max_count = 0;
