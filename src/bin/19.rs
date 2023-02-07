@@ -110,7 +110,7 @@ fn parse_input(input: &str) -> (usize, Vec<[usize; 4]>) {
     let mut program = Vec::new();
     let mut pointer_binding = 0;
     for line in input.lines() {
-        if line.contains("#") {
+        if line.contains('#') {
             let reg = line.split(' ').collect::<Vec<&str>>();
             pointer_binding = reg.get(1).unwrap().parse::<usize>().unwrap();
         } else {
