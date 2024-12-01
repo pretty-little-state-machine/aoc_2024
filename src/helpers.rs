@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::collections::VecDeque;
 #[cfg(not(doctest))]
 /// Parses a sparsely populated text matrix with a filter character to extract input rows and a

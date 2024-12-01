@@ -7,19 +7,15 @@ default-run = "aoc"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-pico-args = "0.5.0"
-itertools = { version = "0.10.5", git = "https://www.github.com/ejmount/itertools" }
-rayon = "1.6.0"
-rustc-hash = "1.1.0"
-regex = "1.7.0"
-# For Day 15 at least
-pathfinding = "4.2.1"
-# For primitive types to enum casts
-enum-primitive-derive = "^0.1"
-num-traits = "^0.1"
-num = "0.4.0"
+colored = "2.1.0"
+fxhash = "0.2.1"
+itertools = "0.13.0"
+num = "0.4.1"
+rayon = "1.10.0"
+regex = "1.11.1"
+
 # Logging
-log = { version = "0.4.17", features = ["max_level_debug", "release_max_level_warn"] }
+log = { version = "0.4.22", features = ["max_level_debug", "release_max_level_warn"] }
 
 [profile.test]
 opt-level = 3
