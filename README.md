@@ -16,7 +16,7 @@ storage but does include parsing for fairness.
 
 **Total Runtime: TBD**
 
-|  Day   |  Part 1  |   Part 2    |
-|:------:|:--------:|:-----------:|
-| Day 01 | 100.10µs |   29.66ms   |
+|  Day   | Parse  | Part 1 | Part 2 | Total  |
+|:------:|:------:|:------:|:------:|:-------|
+| Day 01 | 29.5µs | 36.7µs | 27.9µs | 94.1µs |
 
