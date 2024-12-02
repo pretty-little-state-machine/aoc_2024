@@ -1,5 +1,8 @@
 #![feature(extract_if)]
+#![feature(let_chains)]
+
 mod day01;
+mod day02;
 mod helpers;
 mod template;
 
@@ -11,7 +14,6 @@ use std::time::Duration;
 type DayResult = (Option<Duration>, (String, Duration), (String, Duration));
 
 fn run_day(day: usize, func: fn(&str) -> DayResult, color: Color) -> Duration {
-
     // Load the file before calling the function for accurate timing
     let contents =
         fs::read_to_string(format!("./src/input/day_{:0>2}.txt", day)).expect("File not found.");
@@ -45,6 +47,7 @@ fn run_day(day: usize, func: fn(&str) -> DayResult, color: Color) -> Duration {
 fn main() {
     let mut final_runtime = Duration::new(0, 0);
     final_runtime += run_day(1, day01::run, Red);
+    final_runtime += run_day(2, day02::run, Green);
 
     print!("{}", "Final Runtime: ".to_string().bold().white());
     if final_runtime < Duration::new(0, 800_000_000) {

@@ -25,16 +25,13 @@ fn part_2(input: &str) -> usize {
     0
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_part_1() {
-    }
+    fn test_part_1() {}
 
     #[test]
-    fn test_part_2() {
-    }
+    fn test_part_2() {}
 }
