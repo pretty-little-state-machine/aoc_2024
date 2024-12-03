@@ -3,6 +3,7 @@
 
 mod day01;
 mod day02;
+mod day03;
 mod helpers;
 mod template;
 
@@ -48,6 +49,7 @@ fn main() {
     let mut final_runtime = Duration::new(0, 0);
     final_runtime += run_day(1, day01::run, Red);
     final_runtime += run_day(2, day02::run, Green);
+    final_runtime += run_day(3, day03::run, Red);
 
     print!("{}", "Final Runtime: ".to_string().bold().white());
     if final_runtime < Duration::new(0, 800_000_000) {
