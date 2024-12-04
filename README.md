@@ -14,25 +14,29 @@ Solutions for [Advent of Code](https://adventofcode.com/) in [Rust](https://www.
 I had a secondary goal of clearing all puzzles in under 1 second. The profile doesn't include loading the file from 
 storage but does include parsing for fairness.
 
-**Total Runtime: 315.7µs**
-
-**🎄Day 1 (84.9µs) 🎄**
+**Total Runtime: 901.8µs**
 ```
-Parse : (22.2µs)
-Part 1: 1151792 (35.6µs)
-Part 2: 21790168 (27.1µs)
-```
+🎄Day 1 (95.3µs) 🎄
+~~~~~~~~~~~~~~~~~~~~~
+Parse : (23µs)
+Part 1: 1151792 (45.3µs)
+Part 2: 21790168 (27µs)
 
-**🎄Day 2 (230.8µs) 🎄**
-```rust
-Parse : (47.5µs)
-Part 1: 631 (46µs)
-Part 2: 665 (137.3µs)
-```
+🎄Day 2 (220.2µs) 🎄
+~~~~~~~~~~~~~~~~~~~~~
+Parse : (44.9µs)
+Part 1: 631 (45.1µs)
+Part 2: 665 (130.2µs)
 
-**🎄Day 3 (235.1µs) 🎄**
-```rust
-Parse : (232.5µs)
-Part 1: 188192787 (1.2µs)
-Part 2: 113965544 (1.4µs)
+🎄Day 3 (229.4µs) 🎄
+~~~~~~~~~~~~~~~~~~~~~
+Parse : (226.5µs)
+Part 1: 188192787 (1.3µs)
+Part 2: 113965544 (1.6µs)
+
+🎄Day 4 (356.9µs) 🎄
+~~~~~~~~~~~~~~~~~~~~~
+Parse : (105.2µs)
+Part 1: 2662 (168.5µs)
+Part 2: 2034 (83.2µs)
 ```
