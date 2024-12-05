@@ -9,6 +9,9 @@ target/
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 
+*.keep
+.vscode
+.github
 
 # Added by cargo
 
@@ -24,3 +27,4 @@ target/
 
 # Jetbrains
 .idea
+.editorconfig
