@@ -1,7 +1,9 @@
 extern crate core;
 
 use crate::DayResult;
-use fxhash::FxHashMap;
+use fxhash::{FxBuildHasher, FxHashMap, FxHashSet};
+use num::Complex;
+use std::collections::HashSet;
 use std::time::Instant;
 
 pub fn run(input: &str) -> DayResult {
@@ -10,75 +12,86 @@ pub fn run(input: &str) -> DayResult {
     let parse_duration = start.elapsed();
 
     let start = Instant::now();
-    let p1 = part_1(&data).to_string();
+    let p1 = part_1(&mut data.clone()).to_string();
     let p1_duration = start.elapsed();
 
     let start = Instant::now();
-    let p2 = part_2(&data).to_string();
+    let p2 = part_2(&mut data.clone()).to_string();
     let p2_duration = start.elapsed();
     (Some(parse_duration), (p1, p1_duration), (p2, p2_duration))
 }
+type WalkResult = Option<HashSet<(Complex<isize>, Complex<isize>), FxBuildHasher>>;
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 struct Puzzle {
-    rules: FxHashMap<isize, Vec<isize>>,
-    updates: [[isize; 20]; 1000],
-}
-
-impl Default for Puzzle {
-    fn default() -> Self {
-        Self {
-            rules: FxHashMap::default(),
-            updates: [[-1; 20]; 1000],
-        }
-    }
+    map: FxHashMap<Complex<isize>, char>,
+    cursor: Complex<isize>,
 }
 
 fn parse(input: &str) -> Puzzle {
     let mut puzzle = Puzzle::default();
-    let mut second_block = false;
-    let mut update_offset = 0;
-    for l in input.lines() {
-        println!("{:?}", l);
-        if l.is_empty() {
-            second_block = true;
-            continue;
-        }
-        if !second_block {
-            let mut fields = l.split('|');
-            let first_page: isize = fields.next().unwrap().parse().unwrap();
-            let second_page: isize = fields.next().unwrap().parse().unwrap();
-            puzzle
-                .rules
-                .entry(first_page)
-                .and_modify(|v| v.push(second_page))
-                .or_insert(vec![second_page]);
-        } else {
-            for (i, page) in l
-                .split(',')
-                .map(|x| x.parse().unwrap())
-                .into_iter()
-                .enumerate()
-            {
-                puzzle.updates[update_offset][i] = page;
+    for (y, line) in input.lines().enumerate() {
+        for (x, char) in line.chars().enumerate() {
+            if char.eq(&'^') {
+                puzzle.cursor = Complex::new(x as isize, y as isize);
+                puzzle.map.insert(Complex::new(x as isize, y as isize), '.');
+            } else {
+                puzzle
+                    .map
+                    .insert(Complex::new(x as isize, y as isize), char);
             }
-            update_offset += 1;
         }
     }
     puzzle
 }
 
-fn part_1(p: &Puzzle) -> usize {
-    for update in p.updates.iter() {
-        // Check all rules for pages
-
-
+#[inline(always)]
+fn walk_guard(p: &mut Puzzle, check_loop: bool) -> WalkResult {
+    let mut seen_positions = FxHashSet::default();
+    let mut direction = Complex::new(0, -1); // Facing NORTH initially
+    seen_positions.insert((p.cursor, direction));
+    while let Some(tile) = p.map.get(&p.cursor) {
+        match tile {
+            '.' => {
+                if check_loop {
+                    seen_positions.insert((p.cursor, direction));
+                } else {
+                    // Never adjust seen direction if we're not checking for loops in the visited
+                    seen_positions.insert((p.cursor, Complex::new(0, -1)));
+                }
+            }
+            '#' => {
+                p.cursor -= direction; // Step back from the impact
+                direction *= Complex::i();
+            }
+            _ => panic!("Unknown Tile"),
+        }
+        p.cursor += direction;
+        if seen_positions.contains(&(p.cursor, direction)) & check_loop {
+            return None;
+        }
     }
-    0
+    Some(seen_positions)
 }
 
-fn part_2(p: &Puzzle) -> usize {
-    0
+fn part_1(p: &mut Puzzle) -> usize {
+    walk_guard(p, false).unwrap().len()
+}
+
+fn part_2(p: &mut Puzzle) -> usize {
+    let starting_point = p.cursor;
+    let visited = walk_guard(p, false).unwrap();
+    // Walk with obstructions added
+    visited
+        .iter()
+        .map(|(tile, _)| {
+            p.cursor = starting_point;
+            p.map.insert(*tile, '#'); // Block a tile
+            let walk = walk_guard(p, true);
+            p.map.insert(*tile, '.'); // Restore a tile
+            walk.is_none() as usize
+        })
+        .sum()
 }
 
 #[cfg(test)]
@@ -88,15 +101,15 @@ mod tests {
 
     #[test]
     fn test_part_one() {
-        let input = fs::read_to_string("./src/example/day_05.txt").expect("File not found.");
-        let x = parse(&input);
-        assert_eq!(part_1(&x), 143);
+        let input = fs::read_to_string("./src/example/day_06.txt").expect("File not found.");
+        let mut x = parse(&input);
+        assert_eq!(part_1(&mut x), 41);
     }
 
     #[test]
     fn test_part_two() {
-        let input = fs::read_to_string("./src/example/day_05.txt").expect("File not found.");
-        let x = parse(&input);
-        assert_eq!(part_2(&x), 9);
+        let input = fs::read_to_string("./src/example/day_06.txt").expect("File not found.");
+        let mut x = parse(&input);
+        assert_eq!(part_2(&mut x), 6);
     }
 }
