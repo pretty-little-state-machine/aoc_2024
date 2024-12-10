@@ -58,3 +58,8 @@ Parse : (98.5µs)
 Part 1: 254 (179.6µs)
 Part 2: 951 (261µs)
 ```
+
+# Visualizations
+For fun!
+## Day 10
+<img src="./.assets/day_10.gif">

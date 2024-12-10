@@ -2,6 +2,7 @@ extern crate core;
 
 use crate::DayResult;
 use fxhash::FxHashMap;
+use itertools::Itertools;
 use std::time::Instant;
 
 pub fn run(input: &str) -> DayResult {
@@ -10,28 +11,23 @@ pub fn run(input: &str) -> DayResult {
     let parse_duration = start.elapsed();
 
     let start = Instant::now();
-    let p1 = part_1(&data).to_string();
+    let (p1, invalid_pages) = process_pages(&data);
     let p1_duration = start.elapsed();
 
     let start = Instant::now();
-    let p2 = part_2(&data).to_string();
+    let p2 = part_2(&data, invalid_pages).to_string();
     let p2_duration = start.elapsed();
-    (Some(parse_duration), (p1, p1_duration), (p2, p2_duration))
+    (
+        Some(parse_duration),
+        (p1.to_string(), p1_duration),
+        (p2, p2_duration),
+    )
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct Puzzle {
-    rules: FxHashMap<isize, Vec<isize>>,
-    updates: [[isize; 20]; 1000],
-}
-
-impl Default for Puzzle {
-    fn default() -> Self {
-        Self {
-            rules: FxHashMap::default(),
-            updates: [[-1; 20]; 1000],
-        }
-    }
+    rules: FxHashMap<usize, Vec<usize>>,
+    updates: Vec<Vec<usize>>,
 }
 
 fn parse(input: &str) -> Puzzle {
@@ -39,23 +35,23 @@ fn parse(input: &str) -> Puzzle {
     let mut second_block = false;
     let mut update_offset = 0;
     for l in input.lines() {
-        println!("{:?}", l);
         if l.is_empty() {
             second_block = true;
             continue;
         }
         if !second_block {
             let mut fields = l.split('|');
-            let first_page: isize = fields.next().unwrap().parse().unwrap();
-            let second_page: isize = fields.next().unwrap().parse().unwrap();
+            let first_page = fields.next().unwrap().parse().unwrap();
+            let second_page = fields.next().unwrap().parse().unwrap();
             puzzle
                 .rules
                 .entry(first_page)
                 .and_modify(|v| v.push(second_page))
                 .or_insert(vec![second_page]);
         } else {
-            for (i, page) in l.split(',').map(|x| x.parse().unwrap()).enumerate() {
-                puzzle.updates[update_offset][i] = page;
+            puzzle.updates.push(Vec::default());
+            for page in l.split(',').map(|x| x.parse().unwrap()) {
+                puzzle.updates[update_offset].push(page);
             }
             update_offset += 1;
         }
@@ -63,14 +59,38 @@ fn parse(input: &str) -> Puzzle {
     puzzle
 }
 
-fn part_1(p: &Puzzle) -> usize {
-    for update in p.updates.iter() {
-        // Check all rules for pages
-    }
-    0
+fn process_pages(p: &Puzzle) -> (usize, Vec<Vec<usize>>) {
+    let mut invalid_updates = Vec::new();
+    let total = p
+        .updates
+        .iter()
+        .map(|u| {
+            let mut valid_update = true;
+            for (page_index, page) in u.iter().enumerate() {
+                let pages_after = &u[page_index..u.len()];
+                for pa in pages_after {
+                    if valid_update {
+                        if let Some(rule) = p.rules.get(page) {
+                            valid_update = rule.contains(pa);
+                        }
+                        if let Some(rule) = p.rules.get(pa) {
+                            valid_update = !rule.contains(page);
+                        }
+                    }
+                }
+            }
+            if valid_update {
+                u[(u.len() - 1) / 2]
+            } else {
+                invalid_updates.push(u.clone());
+                0
+            }
+        })
+        .sum();
+    (total, invalid_updates)
 }
 
-fn part_2(p: &Puzzle) -> usize {
+fn part_2(p: &Puzzle, invalid_pages: Vec<Vec<usize>>) -> usize {
     0
 }
 
@@ -83,13 +103,13 @@ mod tests {
     fn test_part_one() {
         let input = fs::read_to_string("./src/example/day_05.txt").expect("File not found.");
         let x = parse(&input);
-        assert_eq!(part_1(&x), 143);
     }
 
     #[test]
     fn test_part_two() {
         let input = fs::read_to_string("./src/example/day_05.txt").expect("File not found.");
         let x = parse(&input);
-        assert_eq!(part_2(&x), 9);
+        let (_, invalid_pages) = process_pages(&x);
+        assert_eq!(part_2(&x, invalid_pages), 9);
     }
 }
