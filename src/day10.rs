@@ -94,9 +94,9 @@ fn draw_viz(t: &TopoMap, visited_nodes: &FxHashSet<(isize, isize)>, iteration: u
 
 
 fn bfs(t: &TopoMap, count_unique_trails: bool) -> usize {
-    let mut iteration = 0;
+    //let mut iteration = 0;
     t.trailheads
-        .iter()
+        .par_iter()
         .map(|trailhead| {
             let mut visited = FxHashSet::default();
             let mut queue = VecDeque::new();
@@ -105,7 +105,7 @@ fn bfs(t: &TopoMap, count_unique_trails: bool) -> usize {
             // draw_viz(t, &visited, 0);
             while let Some(position) = queue.pop_front() {
                 // draw_viz(t, &visited, iteration);
-                iteration += 1;
+                //iteration += 1;
                 //println!("{:?}::: {:?} :: {:?} :: {:?}", score, t.topo.get(&position), position, visited);
                 if ! count_unique_trails {
                     if visited.contains(&position) {
